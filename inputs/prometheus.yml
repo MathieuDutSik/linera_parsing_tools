@@ -1,0 +1,72 @@
+global:
+  scrape_interval:     1s
+  evaluation_interval: 1s
+
+rule_files:
+  # - "first.rules"
+  # - "second.rules"
+
+scrape_configs:
+  - job_name: linera_test_11000
+    static_configs:
+      - targets: ['0.0.0.0:11000']
+  - job_name: linera_test_11001
+    static_configs:
+      - targets: ['0.0.0.0:11001']
+  - job_name: linera_test_11002
+    static_configs:
+      - targets: ['0.0.0.0:11002']
+  - job_name: linera_test_11003
+    static_configs:
+      - targets: ['0.0.0.0:11003']
+  - job_name: linera_test_11004
+    static_configs:
+      - targets: ['0.0.0.0:11004']
+  - job_name: linera_test_11100
+    static_configs:
+      - targets: ['0.0.0.0:11100']
+  - job_name: linera_test_11101
+    static_configs:
+      - targets: ['0.0.0.0:11101']
+  - job_name: linera_test_11102
+    static_configs:
+      - targets: ['0.0.0.0:11102']
+  - job_name: linera_test_11103
+    static_configs:
+      - targets: ['0.0.0.0:11103']
+  - job_name: linera_test_11104
+    static_configs:
+      - targets: ['0.0.0.0:11104']
+  - job_name: linera_test_11200
+    static_configs:
+      - targets: ['0.0.0.0:11200']
+  - job_name: linera_test_11201
+    static_configs:
+      - targets: ['0.0.0.0:11201']
+  - job_name: linera_test_11202
+    static_configs:
+      - targets: ['0.0.0.0:11202']
+  - job_name: linera_test_11203
+    static_configs:
+      - targets: ['0.0.0.0:11203']
+  - job_name: linera_test_11204
+    static_configs:
+      - targets: ['0.0.0.0:11204']
+  - job_name: linera_test_11300
+    static_configs:
+      - targets: ['0.0.0.0:11300']
+  - job_name: linera_test_11301
+    static_configs:
+      - targets: ['0.0.0.0:11301']
+  - job_name: linera_test_11302
+    static_configs:
+      - targets: ['0.0.0.0:11302']
+  - job_name: linera_test_11303
+    static_configs:
+      - targets: ['0.0.0.0:11303']
+  - job_name: linera_test_11304
+    static_configs:
+      - targets: ['0.0.0.0:11304']
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
