@@ -209,7 +209,7 @@ fn main() {
     l_keys_hist.push("register_view_hash_runtime".to_string());
     l_keys_hist.push("set_view_hash_runtime".to_string());
     // Add the proce
-    for prefix in ["rocks_db_internal", "dynamo_db_internal", "scylla_db_internal", "value_splitting", "lru_caching"] {
+    for prefix in ["rocks_db_internal", "dynamo_db_internal", "scylla_db_internal", "value_splitting", "lru_caching", "storage_service"] {
         for key in ["read_value_bytes", "contains_key", "contains_keys", "read_multi_values_bytes", "find_keys_by_prefix", "find_key_values_by_prefix", "write_batch", "clear_journal"] {
             let entry = format!("{}_{}", prefix, key);
             l_keys_hist.push(entry);
