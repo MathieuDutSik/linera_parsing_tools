@@ -281,6 +281,10 @@ fn main() {
                         println!("delta_time={} avg={}     count={}", delta_time, avg, delta_count);
                     }
                 }
+                let count_tot = get_float(&data_count.entries[i][len_sum - 1].1);
+                let value_tot = get_float(&data_sum.entries[i][len_sum - 1].1);
+                let avg = value_tot / count_tot;
+                println!("len_sum={} avg={}     count={} total={}", len_sum, avg, count_tot, value_tot);
             }
         }
         if n_write > 0 {
