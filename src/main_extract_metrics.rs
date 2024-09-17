@@ -47,7 +47,6 @@ fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &st
         idx += 1;
     }
     let request = format!("http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s", key, start_time, end_time);
-//    println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
         .output()
@@ -82,6 +81,47 @@ fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &st
 }
 
 
+fn read_linera_keys() -> (Vec<String>, Vec<String>) {
+    let request = "http://localhost:9090/api/v1/label/__name__/values".to_string();
+    let output = Command::new("curl")
+        .arg(request)
+        .output()
+        .expect("Failed to execute curl command for getting ListLabel");
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let v: Value = serde_json::from_str(&stdout).unwrap();
+    let mut variables = Vec::new();
+    let LINERA : String = "linera_".to_string();
+    for entry in v["data"].as_array().unwrap() {
+        let entry : String = entry.to_string();
+        let entry = entry.trim_matches(|c| c == '"').to_string();
+        if entry.starts_with(&LINERA) {
+            let entry = entry[LINERA.len()..].to_string();
+            variables.push(entry);
+        }
+    }
+    let endings = vec!["_sum", "_bucket", "_count"];
+    let mut l_keys_counter = Vec::new();
+    let mut l_keys_hist = Vec::new();
+    for var in variables {
+        let test1 = var.ends_with("_sum");
+        let test2 = var.ends_with("_bucket");
+        let test3 = var.ends_with("_count");
+        if !test1 && !test2 && !test3 {
+            l_keys_counter.push(var.clone());
+        }
+        if test1 {
+            let len = var.len();
+            let var = var[..len-4].to_string();
+            l_keys_hist.push(var);
+        }
+    }
+//    println!("l_keys_counter={:?}", l_keys_counter);
+//    println!("");
+//    println!("l_keys_hist={:?}", l_keys_hist);
+    (l_keys_counter, l_keys_hist)
+}
+
+
 
 
 fn main() {
@@ -93,6 +133,7 @@ fn main() {
     }
     let n_arg = arguments.len();
     println!("n_arg={}", n_arg);
+    let (l_keys_counter, l_keys_hist) = read_linera_keys();
     if n_arg == 1 {
         println!("Program is used as");
         println!("parsing_prometheus_run [FileI] [interval]");
@@ -149,72 +190,6 @@ fn main() {
     let n_job = l_job_name.len();
     println!("l_job_name={:?}", l_job_name);
     //
-    // Now the variables
-    //
-    let mut l_keys_counter = Vec::new();
-    l_keys_counter.push("num_blocks_executed".to_string());
-    l_keys_counter.push("value_cache_int".to_string());
-    l_keys_counter.push("value_cache_miss".to_string());
-    l_keys_counter.push("transaction_count".to_string());
-    l_keys_counter.push("num_blocks".to_string());
-    l_keys_counter.push("open_chain_count".to_string());
-    l_keys_counter.push("server_request_count".to_string());
-    l_keys_counter.push("server_request_success".to_string());
-    l_keys_counter.push("server_request_error".to_string());
-    l_keys_counter.push("proxy_request_count".to_string());
-    l_keys_counter.push("proxy_request_success".to_string());
-    l_keys_counter.push("proxy_request_error".to_string());
-    l_keys_counter.push("contains_hashed_certificate_value".to_string());
-    l_keys_counter.push("contains_hashed_certificate_values".to_string());
-    l_keys_counter.push("contains_blob".to_string());
-    l_keys_counter.push("contains_blobs".to_string());
-    l_keys_counter.push("contains_blob_state".to_string());
-    l_keys_counter.push("contains_certificate".to_string());
-    l_keys_counter.push("read_hashed_certificate_value".to_string());
-    l_keys_counter.push("read_blob".to_string());
-    l_keys_counter.push("read_blob_state".to_string());
-    l_keys_counter.push("write_hashed_certificate_value".to_string());
-    l_keys_counter.push("write_blob".to_string());
-    l_keys_counter.push("read_certificate".to_string());
-    l_keys_counter.push("write_certificate".to_string());
-    l_keys_counter.push("num_cache_fault".to_string());
-    l_keys_counter.push("num_cache_success".to_string());
-    l_keys_counter.push("load_view".to_string());
-    l_keys_counter.push("save_view".to_string());
-    let mut l_keys_hist = Vec::new();
-    l_keys_hist.push("block_execution_latency".to_string());
-    l_keys_hist.push("message_execution_latency".to_string());
-    l_keys_hist.push("operation_execution_latency".to_string());
-    l_keys_hist.push("wasm_fuel_used_per_block".to_string());
-    l_keys_hist.push("wasm_num_reads_per_block".to_string());
-    l_keys_hist.push("wasm_bytes_read_per_block".to_string());
-    l_keys_hist.push("wasm_bytes_written_per_block".to_string());
-    l_keys_hist.push("state_hash_computation_latency".to_string());
-    l_keys_hist.push("num_rounds_in_certificate".to_string());
-    l_keys_hist.push("num_rounds_in_block_proposal".to_string());
-    l_keys_hist.push("load_contract_latency".to_string());
-    l_keys_hist.push("load_service_latency".to_string());
-    l_keys_hist.push("contract_instantiation_latency".to_string());
-    l_keys_hist.push("service_instantiation_latency".to_string());
-    l_keys_hist.push("server_request_latency".to_string());
-    l_keys_hist.push("server_request_latency_per_request_type".to_string());
-    l_keys_hist.push("proxy_request_latency".to_string());
-    l_keys_hist.push("load_chain_latency".to_string());
-    l_keys_hist.push("collection_view_hash_runtime".to_string());
-    l_keys_hist.push("key_value_store_view_hash_runtime".to_string());
-    l_keys_hist.push("log_view_hash_runtime".to_string());
-    l_keys_hist.push("map_view_hash_runtime".to_string());
-    l_keys_hist.push("queue_view_hash_runtime".to_string());
-    l_keys_hist.push("reentrant_collection_view_hash_runtime".to_string());
-    l_keys_hist.push("register_view_hash_runtime".to_string());
-    l_keys_hist.push("set_view_hash_runtime".to_string());
-    // Add the proce
-    for prefix in ["rocks_db_internal", "dynamo_db_internal", "scylla_db_internal", "value_splitting", "lru_caching", "storage_service"] {
-        for key in ["read_value_bytes", "contains_key", "contains_keys", "read_multi_values_bytes", "find_keys_by_prefix", "find_key_values_by_prefix", "write_batch", "clear_journal"] {
-            let entry = format!("{}_{}", prefix, key);
-            l_keys_hist.push(entry);
-        }
-    }
     println!("---------------- keys_counter -----------------");
     let mut n_counter_key_eff = 0;
     for key in l_keys_counter.clone() {
