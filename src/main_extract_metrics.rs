@@ -90,16 +90,15 @@ fn read_linera_keys() -> (Vec<String>, Vec<String>) {
     let stdout = String::from_utf8(output.stdout).unwrap();
     let v: Value = serde_json::from_str(&stdout).unwrap();
     let mut variables = Vec::new();
-    let LINERA : String = "linera_".to_string();
+    let linera = "linera_";
     for entry in v["data"].as_array().unwrap() {
         let entry : String = entry.to_string();
         let entry = entry.trim_matches(|c| c == '"').to_string();
-        if entry.starts_with(&LINERA) {
-            let entry = entry[LINERA.len()..].to_string();
+        if entry.starts_with(linera) {
+            let entry = entry[linera.len()..].to_string();
             variables.push(entry);
         }
     }
-    let endings = vec!["_sum", "_bucket", "_count"];
     let mut l_keys_counter = Vec::new();
     let mut l_keys_hist = Vec::new();
     for var in variables {
@@ -213,6 +212,9 @@ fn main() {
                         println!("delta_time={} delta_val={}", delta_time, delta_val);
                     }
                 }
+                let value_tot = &data.entries[i][len-1].1;
+                let value_tot = get_float(value_tot);
+                println!("    total_value={}", value_tot);
             }
         }
         if n_write > 0 {
