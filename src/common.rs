@@ -64,8 +64,13 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         for (k, v) in values {
             values_vect.push((k, v));
         }
-        let pos : usize = *map_job_name.get(&job_name).unwrap();
-        entries[pos] = values_vect;
+        match map_job_name.get(&job_name) {
+            Some(pos) => {
+                entries[*pos] = values_vect;
+            },
+            _ => {
+            },
+        }
     }
     ReadData { min_time, entries, le }
 }
