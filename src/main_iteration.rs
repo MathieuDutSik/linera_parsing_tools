@@ -8,6 +8,7 @@ use std::io::BufReader;
 use std::process::{
     Command,
 };
+use std::collections::HashMap;
 use chrono::{Utc, DateTime};
 
 use common::{get_float, get_request_string, read_key, read_linera_keys};
@@ -16,6 +17,7 @@ use common::{get_float, get_request_string, read_key, read_linera_keys};
 
 #[derive(Deserialize)]
 struct Config {
+    environments: Vec<String>,
     commands: Vec<String>,
     critical_command: String,
     target_keys_hist: Vec<String>,
@@ -42,6 +44,7 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     let file_err = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
     let file_err = File::create(file_err)?;
     let start_time: DateTime<Utc> = Utc::now();
+    let envs = get_environments(&config)?;
     let l_str = config.runtime_target.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
     let command = &l_str[0];
     let mut comm_args = Vec::new();
@@ -51,6 +54,7 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     let _output = Command::new(command)
         .stdout::<File>(file_out)
         .stderr::<File>(file_err)
+        .envs(&envs)
         .args(comm_args)
         .output()?;
     let end_time: DateTime<Utc> = Utc::now();
@@ -86,6 +90,26 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     Ok(ResultSingleRun { results, runtime })
 }
 
+fn get_environments(config: &Config) -> anyhow::Result<HashMap<String,String>> {
+    let mut map = HashMap::new();
+    let start_str = "export ";
+    for entry in &config.environments {
+        if !entry.starts_with(start_str) {
+            anyhow::bail!("Should starts with export ");
+        }
+        let entry = &entry[start_str.len()..];
+        let l_str = entry.split('=').map(|x| x.to_string()).collect::<Vec<_>>();
+        if l_str.len() != 2 {
+            println!("l_str={:?}", l_str);
+            anyhow::bail!("l_str should have length 2");
+        }
+        let key = l_str[0].to_string();
+        let value = l_str[1].to_string();
+        map.insert(key, value);
+    }
+    Ok(map)
+}
+
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();
     let mut arguments = Vec::new();
@@ -105,9 +129,11 @@ fn main() -> anyhow::Result<()> {
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader)?;
     println!("commands={:?}", config.commands);
+    let envs = get_environments(&config)?;
     let mut childs = Vec::new();
     let mut i_command = 0;
     for command in &config.commands {
+        println!("i_command={} command={}", i_command, command);
         let file_out = format!("OUT_COMM_{}.out", i_command);
         let file_out = File::create(file_out)?;
         let file_err = format!("OUT_COMM_{}.err", i_command);
@@ -124,6 +150,7 @@ fn main() -> anyhow::Result<()> {
             let child = Command::new(command)
                 .stdout::<File>(file_out)
                 .stderr::<File>(file_err)
+                .envs(&envs)
                 .args(comm_args)
                 .spawn()?;
             childs.push(child);
@@ -137,6 +164,7 @@ fn main() -> anyhow::Result<()> {
             let output = Command::new(command)
                 .stdout::<File>(file_out)
                 .stderr::<File>(file_err)
+                .envs(&envs)
                 .args(comm_args)
                 .output()?;
             println!("output={:?}", output);
