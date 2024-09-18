@@ -2,7 +2,9 @@ extern crate serde;
 use serde::{Deserialize};
 use std::fs::File;
 use std::io::BufReader;
-
+use std::process::{
+    Command,
+};
 
 
 #[derive(Deserialize)]
@@ -31,9 +33,21 @@ fn main() {
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader).expect("Failed to parse JSON");
     println!("commands={:?}", config.commands);
-    for command in commands {
-        
-        
-        
+    
+    for command in config.commands {
+        if command.ends_with(" &") {
+        } else {
+            let l_str = command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
+            let command = &l_str[0];
+            let mut comm_args = Vec::new();
+            for i in 1..l_str.len() {
+                comm_args.push(l_str[i].clone());
+            }
+            let output = Command::new(command)
+                .args(comm_args)
+                .output()
+                .expect("Failed to execute command");
+            println!("output={:?}", output);
+        }
     }
 }
