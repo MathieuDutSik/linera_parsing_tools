@@ -11,7 +11,7 @@ use std::process::{
 use std::collections::HashMap;
 use chrono::{Utc, DateTime};
 
-use common::{get_float, get_request_string, read_key, read_linera_keys};
+use common::{get_float, read_key};
 
 
 
@@ -29,6 +29,7 @@ struct Config {
 /*
 Results from the run, the entries are by the job_name, and then by the variable name.
 */
+#[derive(Debug)]
 struct ResultSingleRun {
     results: Vec<Vec<Option<f64>>>,
     runtime: f64,
@@ -40,17 +41,21 @@ struct ResultSingleRun {
 
 fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
     let file_out = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
-    let file_out = File::create(file_out)?;
     let file_err = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
+    println!("execute_and_estimate_runtime file_out={} file_err={}", file_out, file_err);
+    let file_out = File::create(file_out)?;
     let file_err = File::create(file_err)?;
     let start_time: DateTime<Utc> = Utc::now();
     let envs = get_environments(&config)?;
-    let l_str = config.runtime_target.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
+    println!("execute_and_estimate_runtime envs={:?}", envs);
+    let l_str = config.critical_command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
     let command = &l_str[0];
+    println!("execute_and_estimate_runtime command={}", command);
     let mut comm_args = Vec::new();
     for i in 1..l_str.len() {
         comm_args.push(l_str[i].clone());
     }
+    println!("execute_and_estimate_runtime comm_args={:?}", comm_args);
     let _output = Command::new(command)
         .stdout::<File>(file_out)
         .stderr::<File>(file_err)
@@ -171,12 +176,14 @@ fn main() -> anyhow::Result<()> {
         }
         i_command += 1;
     }
+    println!("------ The initial runs have been done -------");
     //
     // Running the commands iteratively
     //
     let mut var_results : Vec<ResultSingleRun> = Vec::new();
     for iter in 0..config.n_iter {
         let var_result = execute_and_estimate_runtime(iter, &config)?;
+        println!("var_result={:?}", var_result);
         var_results.push(var_result);
     }
     Ok(())
