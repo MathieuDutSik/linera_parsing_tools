@@ -1,8 +1,18 @@
 {
     "environments": [
-        "export LINERA_WALLET=/tmp/WORK/wallet_0.json",
-        "export LINERA_STORAGE=rocksdb:/tmp/WORK/client_0.db",
-        "export LINERA_FAUCET_URL=http://localhost:8079"
+        {
+            "command": "./target/debug/linera faucet --amount 1000 --port 8079",
+            "environments": [
+                "export LINERA_WALLET=/tmp/WORK/wallet_0.json",
+                "export LINERA_STORAGE=rocksdb:/tmp/WORK/client_0.db"
+            ]
+        },
+        {
+            "command": "cargo test test_wasm_end_to_end_amm::remote_net_grpc --features metrics,remote-net,scylladb",
+            "environments": [
+                "export LINERA_FAUCET_URL=http://localhost:8079"
+            ]
+        }
     ],
     "commands": [
         "rm -rf /tmp/WORK",

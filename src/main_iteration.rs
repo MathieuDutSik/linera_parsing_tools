@@ -13,11 +13,15 @@ use chrono::{Utc, DateTime};
 
 use common::{get_float, read_key};
 
-
+#[derive(Deserialize)]
+struct SingleEnvironmentList {
+    command: String,
+    environments: Vec<String>,
+}
 
 #[derive(Deserialize)]
 struct Config {
-    environments: Vec<String>,
+    environments: Vec<SingleEnvironmentList>,
     commands: Vec<String>,
     critical_command: String,
     target_keys_hist: Vec<String>,
@@ -36,6 +40,30 @@ struct ResultSingleRun {
 }
 
 
+fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String,String>> {
+    let mut map = HashMap::new();
+    let start_str = "export ";
+    for sel in &config.environments {
+        if &sel.command == command {
+            for entry in &sel.environments {
+                if !entry.starts_with(start_str) {
+                    anyhow::bail!("Should starts with export ");
+                }
+                let entry = &entry[start_str.len()..];
+                let l_str = entry.split('=').map(|x| x.to_string()).collect::<Vec<_>>();
+                if l_str.len() != 2 {
+                    println!("l_str={:?}", l_str);
+                    anyhow::bail!("l_str should have length 2");
+                }
+                let key = l_str[0].to_string();
+                let value = l_str[1].to_string();
+                map.insert(key, value);
+            }
+        }
+    }
+    Ok(map)
+}
+
 
 
 
@@ -46,7 +74,7 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     let file_out = File::create(file_out)?;
     let file_err = File::create(file_err)?;
     let start_time: DateTime<Utc> = Utc::now();
-    let envs = get_environments(&config)?;
+    let envs = get_environments(&config, &config.critical_command)?;
     println!("execute_and_estimate_runtime envs={:?}", envs);
     let l_str = config.critical_command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
     let command = &l_str[0];
@@ -95,26 +123,6 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     Ok(ResultSingleRun { results, runtime })
 }
 
-fn get_environments(config: &Config) -> anyhow::Result<HashMap<String,String>> {
-    let mut map = HashMap::new();
-    let start_str = "export ";
-    for entry in &config.environments {
-        if !entry.starts_with(start_str) {
-            anyhow::bail!("Should starts with export ");
-        }
-        let entry = &entry[start_str.len()..];
-        let l_str = entry.split('=').map(|x| x.to_string()).collect::<Vec<_>>();
-        if l_str.len() != 2 {
-            println!("l_str={:?}", l_str);
-            anyhow::bail!("l_str should have length 2");
-        }
-        let key = l_str[0].to_string();
-        let value = l_str[1].to_string();
-        map.insert(key, value);
-    }
-    Ok(map)
-}
-
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();
     let mut arguments = Vec::new();
@@ -134,7 +142,6 @@ fn main() -> anyhow::Result<()> {
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader)?;
     println!("commands={:?}", config.commands);
-    let envs = get_environments(&config)?;
     let mut childs = Vec::new();
     let mut i_command = 0;
     for command in &config.commands {
@@ -146,6 +153,9 @@ fn main() -> anyhow::Result<()> {
         let len_command = command.len();
         if command.ends_with(" &") {
             let red_command = command[..len_command-2].to_string();
+            println!("   red_command={}", red_command);
+            let envs = get_environments(&config, &red_command)?;
+            println!("   SPA envs={:?}", envs);
             let l_str = red_command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
             let command = &l_str[0];
             let mut comm_args = Vec::new();
@@ -162,6 +172,8 @@ fn main() -> anyhow::Result<()> {
         } else {
             let l_str = command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
             let command = &l_str[0];
+            let envs = get_environments(&config, command)?;
+            println!("   DIR envs={:?}", envs);
             let mut comm_args = Vec::new();
             for i in 1..l_str.len() {
                 comm_args.push(l_str[i].clone());
