@@ -5,13 +5,14 @@ mod common;
 use serde::{Deserialize};
 use std::fs::File;
 use std::io::BufReader;
+use std::io::BufRead;
 use std::process::{
     Command,
 };
 use std::collections::HashMap;
 use chrono::{Utc, DateTime};
 
-use common::{get_float, read_key};
+use common::{get_float, read_key, get_time_string_lower, get_time_string_upper};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -65,14 +66,46 @@ fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap
 }
 
 
+fn read_lines_of_file(file_name: &String) -> Vec<String> {
+    let file = File::open(file_name).expect("A file");
+    let reader = BufReader::new(file);
+    //
+    let mut lines = Vec::new();
+    for pre_line in reader.lines() {
+        let line = pre_line.expect("line");
+        lines.push(line);
+    }
+    lines
+}
+
+
+fn get_runtime(file_name: &String, runtime_target: &String) -> f64 {
+    let lines = read_lines_of_file(file_name);
+    for i_line in 0..lines.len()-2 {
+        let line = &lines[i_line];
+        let l_str = line.split(runtime_target).map(|x| x.to_string()).collect::<Vec<_>>();
+        if l_str.len() == 2 {
+            let line = &lines[i_line+2];
+            let l_str = line.split("finished in ").map(|x| x.to_string()).collect::<Vec<_>>();
+            if l_str.len() == 2 {
+                let estr = &l_str[1];
+                let estr = &estr[..estr.len()-1];
+                let val : f64 = estr.parse().unwrap();
+                return val;
+            }
+        }
+    }
+    panic!("Failed to find an entry that matches");
+}
+
 
 
 fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
-    let file_out = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
-    let file_err = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
-    println!("execute_and_estimate_runtime file_out={} file_err={}", file_out, file_err);
-    let file_out = File::create(file_out)?;
-    let file_err = File::create(file_err)?;
+    let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
+    let file_err_str = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
+    println!("execute_and_estimate_runtime file_out_str={} file_err_str={}", file_out_str, file_err_str);
+    let file_out = File::create(file_out_str.clone())?;
+    let file_err = File::create(file_err_str)?;
     let start_time: DateTime<Utc> = Utc::now();
     let envs = get_environments(&config, &config.critical_command)?;
     println!("execute_and_estimate_runtime envs={:?}", envs);
@@ -91,8 +124,10 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
         .args(comm_args)
         .output()?;
     let end_time: DateTime<Utc> = Utc::now();
-    let start_time_str = start_time.to_string();
-    let end_time_str = end_time.to_string();
+    let start_time_str = get_time_string_lower(start_time);
+    let end_time_str = get_time_string_upper(end_time);
+    println!("start_time={} end_time={}", start_time, end_time);
+    println!("start_time_str={} end_time_str={}", start_time_str, end_time_str);
     let mut results : Vec<Vec<Option<f64>>> = Vec::new();
     let n_job = config.l_job_name.len();
     let n_keys = config.target_keys_hist.len();
@@ -119,7 +154,7 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
             }
         }
     }
-    let runtime = 0 as f64;
+    let runtime = get_runtime(&file_out_str, &config.runtime_target);
     Ok(ResultSingleRun { results, runtime })
 }
 
@@ -198,5 +233,42 @@ fn main() -> anyhow::Result<()> {
         println!("var_result={:?}", var_result);
         var_results.push(var_result);
     }
+    let n_key = config.target_keys_hist.len();
+    let n_job = config.l_job_name.len();
+    for i_job in 0..n_job {
+        println!("Metrics for job={}", config.l_job_name[i_job]);
+        for i_key in 0..n_key {
+            let key = &config.target_keys_hist[i_key];
+            let mut n_miss = 0;
+            let mut sum_val = 0 as f64;
+            let mut count = 0 as f64;
+            let mut vals = Vec::new();
+            for iter in 0..config.n_iter {
+                match var_results[iter].results[i_job][i_key] {
+                    None => {
+                        n_miss += 1;
+                    },
+                    Some(val) => {
+                        sum_val += val;
+                        count += 1.0;
+                        vals.push(val);
+                    }
+                }
+            }
+            let avg = sum_val / count;
+            println!("  key={} n_miss={} avg={} vals={:?}", key, n_miss, avg, vals);
+        }
+    }
+    let mut sum_val = 0 as f64;
+    let mut count = 0 as f64;
+    let mut vals = Vec::new();
+    for iter in 0..config.n_iter {
+        let val = var_results[iter].runtime;
+        sum_val += val;
+        count += 1.0;
+        vals.push(val);
+    }
+    let avg = sum_val / count;
+    println!("runtime, avg={} vals={:?}", avg, vals);
     Ok(())
 }

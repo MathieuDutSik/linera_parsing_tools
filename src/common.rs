@@ -4,7 +4,7 @@ extern crate chrono;
 use std::process::Command;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use chrono::{Utc, DateTime, Datelike, Timelike};
+use chrono::{Utc, DateTime, Duration, Datelike, Timelike};
 
 pub fn get_float(input: &str) -> f64 {
     let input = input.trim_matches(|c| c == '"').to_string();
@@ -16,6 +16,35 @@ pub struct ReadData {
     pub entries: Vec<Vec<(usize,String)>>,
     pub le: Option<f64>,
 }
+
+fn get_time_string(ti: DateTime<Utc>) -> String {
+    let year = ti.year();
+    let month = ti.month();
+    let day = ti.day();
+    let hour = ti.hour();
+    let minute = ti.minute();
+    let second = ti.second();
+    let year = format!("{}", year);
+    let month = format!("{:02}", month);
+    let day = format!("{:02}", day);
+    let hour = format!("{:02}", hour);
+    let minute = format!("{:02}", minute);
+    let second = format!("{:02}", second);
+    format!("{}-{}-{}T{}:{}:{}Z", year, month, day, hour, minute, second)
+}
+
+
+
+pub fn get_time_string_lower(time: DateTime<Utc>) -> String {
+    let time = time - Duration::seconds(2);
+    get_time_string(time)
+}
+
+pub fn get_time_string_upper(time: DateTime<Utc>) -> String {
+    let time = time + Duration::seconds(2);
+    get_time_string(time)
+}
+
 
 pub fn get_request_string(datetime: DateTime<Utc>) -> String {
     let year = datetime.year();
@@ -37,6 +66,7 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         idx += 1;
     }
     let request = format!("http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s", key, start_time, end_time);
+    println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
         .output()
