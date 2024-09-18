@@ -13,9 +13,9 @@ name = "run_and_obtain_metrics"
 path = "src/main_iteration.rs"
 
 [dependencies]
+anyhow = "1.0.80"
 chrono = "0.4.38"
 html_parser = "0.6.3"
-nml = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1.0.111"
