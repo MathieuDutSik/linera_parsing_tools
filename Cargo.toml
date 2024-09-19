@@ -14,6 +14,7 @@ path = "src/main_iteration.rs"
 
 [dependencies]
 anyhow = "1.0.80"
+sysinfo = "0.24.0"
 chrono = "0.4.38"
 html_parser = "0.6.3"
 serde = { version = "1.0", features = ["derive"] }

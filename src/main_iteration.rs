@@ -1,6 +1,7 @@
 extern crate serde;
 extern crate serde_json;
 extern crate chrono;
+extern crate sysinfo;
 mod common;
 use serde::{Deserialize};
 use std::fs::File;
@@ -11,6 +12,7 @@ use std::process::{
 };
 use std::collections::HashMap;
 use chrono::{Utc, DateTime};
+use sysinfo::{ProcessExt, System, SystemExt, Signal};
 
 use common::{get_float, read_key, get_time_string_lower, get_time_string_upper};
 
@@ -21,14 +23,24 @@ struct SingleEnvironmentList {
 }
 
 #[derive(Deserialize)]
+struct SingleFaultSuccess {
+    fault: String,
+    success: String,
+}
+
+
+#[derive(Deserialize)]
 struct Config {
     environments: Vec<SingleEnvironmentList>,
     commands: Vec<String>,
     critical_command: String,
     target_keys_hist: Vec<String>,
+    target_fault_success: Vec<SingleFaultSuccess>,
     runtime_target: String,
     l_job_name: Vec<String>,
     n_iter: usize,
+    skip: usize,
+    kill_after_work: Vec<String>,
 }
 
 /*
@@ -37,6 +49,7 @@ Results from the run, the entries are by the job_name, and then by the variable 
 #[derive(Debug)]
 struct ResultSingleRun {
     results: Vec<Vec<Option<f64>>>,
+    fault_success: Vec<Vec<Option<f64>>>,
     runtime: f64,
 }
 
@@ -154,9 +167,62 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
             }
         }
     }
+    let mut fault_success : Vec<Vec<Option<f64>>> = Vec::new();
+    let n_fs = config.target_fault_success.len();
+    for _i_job in 0..n_job {
+        let mut v = Vec::new();
+        for _i_fs in 0..n_fs {
+            v.push(None);
+        }
+        fault_success.push(v);
+    }
+    for i_fs in 0..n_fs {
+        let key_f = format!("linera_{}", config.target_fault_success[i_fs].fault);
+        let key_s = format!("linera_{}", config.target_fault_success[i_fs].success);
+        let data_f = read_key(&key_f, &config.l_job_name, &start_time_str, &end_time_str);
+        let data_s = read_key(&key_s, &config.l_job_name, &start_time_str, &end_time_str);
+        for i_job in 0..n_job {
+            let len_s = data_s.entries[i_job].len();
+            let len_f = data_s.entries[i_job].len();
+            if len_s > 0 && len_f > 0 {
+                let count_f = get_float(&data_f.entries[i_job][len_f - 1].1);
+                let count_s = get_float(&data_s.entries[i_job][len_s - 1].1);
+                let perf = count_s / (count_f + count_s);
+                fault_success[i_job][i_fs] = Some(perf);
+            }
+        }
+    }
     let runtime = get_runtime(&file_out_str, &config.runtime_target);
-    Ok(ResultSingleRun { results, runtime })
+    Ok(ResultSingleRun { results, fault_success, runtime })
 }
+
+fn kill_after_work(config: &Config) {
+    let mut system = System::new_all();
+
+    // Refresh to get up-to-date process information
+    system.refresh_all();
+
+    // Iterate over all processes
+    for (pid, process) in system.processes() {
+        let mut is_matching = false;
+        for name in &config.kill_after_work {
+            if process.name() == name {
+                is_matching = true;
+            }
+        }
+        if is_matching {
+            println!("Killing process: {} (PID: {})", process.name(), pid);
+            // Send the `Signal::Kill` signal to the process
+            if process.kill() {
+                println!("Successfully killed process: {}", pid);
+            } else {
+                eprintln!("Failed to kill process: {}", pid);
+            }
+        }
+    }
+}
+
+
 
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();
@@ -238,12 +304,11 @@ fn main() -> anyhow::Result<()> {
     for i_job in 0..n_job {
         println!("Metrics for job={}", config.l_job_name[i_job]);
         for i_key in 0..n_key {
-            let key = &config.target_keys_hist[i_key];
             let mut n_miss = 0;
             let mut sum_val = 0 as f64;
             let mut count = 0 as f64;
             let mut vals = Vec::new();
-            for iter in 0..config.n_iter {
+            for iter in config.skip..config.n_iter {
                 match var_results[iter].results[i_job][i_key] {
                     None => {
                         n_miss += 1;
@@ -256,13 +321,45 @@ fn main() -> anyhow::Result<()> {
                 }
             }
             let avg = sum_val / count;
+            let key = &config.target_keys_hist[i_key];
             println!("  key={} n_miss={} avg={} vals={:?}", key, n_miss, avg, vals);
         }
     }
+    let n_fs = config.target_fault_success.len();
+    for i_job in 0..n_job {
+        println!("Fault/Success metyrics for job={}", config.l_job_name[i_job]);
+        for i_fs in 0..n_fs {
+            let mut n_miss = 0;
+            let mut sum_val = 0 as f64;
+            let mut count = 0 as f64;
+            let mut vals = Vec::new();
+            for iter in config.skip..config.n_iter {
+                match var_results[iter].fault_success[i_job][i_fs] {
+                    None => {
+                        n_miss += 1;
+                    },
+                    Some(val) => {
+                        sum_val += val;
+                        count += 1.0;
+                        vals.push(val);
+                    }
+                }
+            }
+            let key_f = &config.target_fault_success[i_fs].fault;
+            let key_s = &config.target_fault_success[i_fs].success;
+            if vals.len() > 0 {
+                let avg = sum_val / count;
+                println!("  key={} / {} n_miss={} avg={} vals={:?}", key_f, key_s, n_miss, avg, vals);
+            } else {
+                println!("  No metric for{} / {}", key_f, key_s);
+            }
+        }
+    }
+
     let mut sum_val = 0 as f64;
     let mut count = 0 as f64;
     let mut vals = Vec::new();
-    for iter in 0..config.n_iter {
+    for iter in config.skip..config.n_iter {
         let val = var_results[iter].runtime;
         sum_val += val;
         count += 1.0;
@@ -270,5 +367,6 @@ fn main() -> anyhow::Result<()> {
     }
     let avg = sum_val / count;
     println!("runtime, avg={} vals={:?}", avg, vals);
+    kill_after_work(&config);
     Ok(())
 }
