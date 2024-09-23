@@ -59,11 +59,9 @@ pub fn get_request_string(datetime: DateTime<Utc>) -> String {
 pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> ReadData {
     let mut min_time: usize = usize::MAX;
     let mut map_job_name = BTreeMap::<String, usize>::new();
-    let mut idx = 0;
     let n_job = l_job_name.len();
-    for job_name in l_job_name {
+    for (idx, job_name) in l_job_name.iter().enumerate() {
         map_job_name.insert(job_name.clone(), idx);
-        idx += 1;
     }
     let request = format!(
         "http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s",
@@ -97,11 +95,8 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         for (k, v) in values {
             values_vect.push((k, v));
         }
-        match map_job_name.get(&job_name) {
-            Some(pos) => {
-                entries[*pos] = values_vect;
-            }
-            _ => {}
+        if let Some(pos) = map_job_name.get(&job_name) {
+            entries[*pos] = values_vect;
         }
     }
     ReadData {

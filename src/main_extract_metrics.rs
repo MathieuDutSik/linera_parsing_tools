@@ -24,8 +24,8 @@ fn main() {
         println!("parsing_prometheus_run [FileI] [interval]");
         println!("or");
         println!("parsing_prometheus_run [FileI] [start] [end]");
-        println!("");
-        println!("");
+        println!();
+        println!();
         println!("   FileI: The input file to Prometheus, e.g. prometheus.yml");
         println!("interval: The time scale in second to search from");
         std::process::exit(1)
@@ -108,7 +108,7 @@ fn main() {
             }
         }
         if n_write > 0 {
-            println!("");
+            println!();
             n_counter_key_eff += 1;
         }
     }
@@ -161,7 +161,7 @@ fn main() {
             }
         }
         if n_write > 0 {
-            println!("");
+            println!();
             n_hist_key_eff += 1;
         }
     }

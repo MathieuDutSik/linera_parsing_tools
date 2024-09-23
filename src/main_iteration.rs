@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::process::Command;
-use sysinfo::{ProcessExt, Signal, System, SystemExt};
+use sysinfo::{ProcessExt, System, SystemExt};
 
 use common::{get_float, get_time_string_lower, get_time_string_upper, read_key};
 
@@ -121,7 +121,7 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     let file_out = File::create(file_out_str.clone())?;
     let file_err = File::create(file_err_str)?;
     let start_time: DateTime<Utc> = Utc::now();
-    let envs = get_environments(&config, &config.critical_command)?;
+    let envs = get_environments(config, &config.critical_command)?;
     println!("execute_and_estimate_runtime envs={:?}", envs);
     let l_str = config
         .critical_command
@@ -259,8 +259,7 @@ fn main() -> anyhow::Result<()> {
     let config: Config = serde_json::from_reader(reader)?;
     println!("commands={:?}", config.commands);
     let mut childs = Vec::new();
-    let mut i_command = 0;
-    for command in &config.commands {
+    for (i_command, command) in config.commands.iter().enumerate() {
         println!("i_command={} command={}", i_command, command);
         let file_out = format!("OUT_COMM_{}.out", i_command);
         let file_out = File::create(file_out)?;
@@ -308,7 +307,6 @@ fn main() -> anyhow::Result<()> {
                 .output()?;
             println!("output={:?}", output);
         }
-        i_command += 1;
     }
     println!("------ The initial runs have been done -------");
     //
