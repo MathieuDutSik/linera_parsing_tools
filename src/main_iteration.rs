@@ -1,20 +1,18 @@
+extern crate chrono;
 extern crate serde;
 extern crate serde_json;
-extern crate chrono;
 extern crate sysinfo;
 mod common;
-use serde::{Deserialize};
-use std::fs::File;
-use std::io::BufReader;
-use std::io::BufRead;
-use std::process::{
-    Command,
-};
+use chrono::{DateTime, Utc};
+use serde::Deserialize;
 use std::collections::HashMap;
-use chrono::{Utc, DateTime};
-use sysinfo::{ProcessExt, System, SystemExt, Signal};
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::process::Command;
+use sysinfo::{ProcessExt, Signal, System, SystemExt};
 
-use common::{get_float, read_key, get_time_string_lower, get_time_string_upper};
+use common::{get_float, get_time_string_lower, get_time_string_upper, read_key};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -27,7 +25,6 @@ struct SingleFaultSuccess {
     fault: String,
     success: String,
 }
-
 
 #[derive(Deserialize)]
 struct Config {
@@ -53,8 +50,7 @@ struct ResultSingleRun {
     runtime: f64,
 }
 
-
-fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String,String>> {
+fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String, String>> {
     let mut map = HashMap::new();
     let start_str = "export ";
     for sel in &config.environments {
@@ -78,7 +74,6 @@ fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap
     Ok(map)
 }
 
-
 fn read_lines_of_file(file_name: &String) -> Vec<String> {
     let file = File::open(file_name).expect("A file");
     let reader = BufReader::new(file);
@@ -91,19 +86,24 @@ fn read_lines_of_file(file_name: &String) -> Vec<String> {
     lines
 }
 
-
 fn get_runtime(file_name: &String, runtime_target: &String) -> f64 {
     let lines = read_lines_of_file(file_name);
-    for i_line in 0..lines.len()-2 {
+    for i_line in 0..lines.len() - 2 {
         let line = &lines[i_line];
-        let l_str = line.split(runtime_target).map(|x| x.to_string()).collect::<Vec<_>>();
+        let l_str = line
+            .split(runtime_target)
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>();
         if l_str.len() == 2 {
-            let line = &lines[i_line+2];
-            let l_str = line.split("finished in ").map(|x| x.to_string()).collect::<Vec<_>>();
+            let line = &lines[i_line + 2];
+            let l_str = line
+                .split("finished in ")
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>();
             if l_str.len() == 2 {
                 let estr = &l_str[1];
-                let estr = &estr[..estr.len()-1];
-                let val : f64 = estr.parse().unwrap();
+                let estr = &estr[..estr.len() - 1];
+                let val: f64 = estr.parse().unwrap();
                 return val;
             }
         }
@@ -111,18 +111,23 @@ fn get_runtime(file_name: &String, runtime_target: &String) -> f64 {
     panic!("Failed to find an entry that matches");
 }
 
-
-
 fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
     let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
     let file_err_str = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
-    println!("execute_and_estimate_runtime file_out_str={} file_err_str={}", file_out_str, file_err_str);
+    println!(
+        "execute_and_estimate_runtime file_out_str={} file_err_str={}",
+        file_out_str, file_err_str
+    );
     let file_out = File::create(file_out_str.clone())?;
     let file_err = File::create(file_err_str)?;
     let start_time: DateTime<Utc> = Utc::now();
     let envs = get_environments(&config, &config.critical_command)?;
     println!("execute_and_estimate_runtime envs={:?}", envs);
-    let l_str = config.critical_command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
+    let l_str = config
+        .critical_command
+        .split(' ')
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
     let command = &l_str[0];
     println!("execute_and_estimate_runtime command={}", command);
     let mut comm_args = Vec::new();
@@ -140,8 +145,11 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
     let start_time_str = get_time_string_lower(start_time);
     let end_time_str = get_time_string_upper(end_time);
     println!("start_time={} end_time={}", start_time, end_time);
-    println!("start_time_str={} end_time_str={}", start_time_str, end_time_str);
-    let mut results : Vec<Vec<Option<f64>>> = Vec::new();
+    println!(
+        "start_time_str={} end_time_str={}",
+        start_time_str, end_time_str
+    );
+    let mut results: Vec<Vec<Option<f64>>> = Vec::new();
     let n_job = config.l_job_name.len();
     let n_keys = config.target_keys_hist.len();
     for _i_job in 0..n_job {
@@ -156,7 +164,12 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
         let key_sum = format!("linera_{}_sum", key);
         let key_count = format!("linera_{}_count", key);
         let data_sum = read_key(&key_sum, &config.l_job_name, &start_time_str, &end_time_str);
-        let data_count = read_key(&key_count, &config.l_job_name, &start_time_str, &end_time_str);
+        let data_count = read_key(
+            &key_count,
+            &config.l_job_name,
+            &start_time_str,
+            &end_time_str,
+        );
         for i_job in 0..n_job {
             let len = data_count.entries[i_job].len();
             if len > 0 {
@@ -167,7 +180,7 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
             }
         }
     }
-    let mut fault_success : Vec<Vec<Option<f64>>> = Vec::new();
+    let mut fault_success: Vec<Vec<Option<f64>>> = Vec::new();
     let n_fs = config.target_fault_success.len();
     for _i_job in 0..n_job {
         let mut v = Vec::new();
@@ -193,7 +206,11 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
         }
     }
     let runtime = get_runtime(&file_out_str, &config.runtime_target);
-    Ok(ResultSingleRun { results, fault_success, runtime })
+    Ok(ResultSingleRun {
+        results,
+        fault_success,
+        runtime,
+    })
 }
 
 fn kill_after_work(config: &Config) {
@@ -221,8 +238,6 @@ fn kill_after_work(config: &Config) {
         }
     }
 }
-
-
 
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();
@@ -253,11 +268,14 @@ fn main() -> anyhow::Result<()> {
         let file_err = File::create(file_err)?;
         let len_command = command.len();
         if command.ends_with(" &") {
-            let red_command = command[..len_command-2].to_string();
+            let red_command = command[..len_command - 2].to_string();
             println!("   red_command={}", red_command);
             let envs = get_environments(&config, &red_command)?;
             println!("   SPA envs={:?}", envs);
-            let l_str = red_command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
+            let l_str = red_command
+                .split(' ')
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>();
             let command = &l_str[0];
             let mut comm_args = Vec::new();
             for i in 1..l_str.len() {
@@ -271,7 +289,10 @@ fn main() -> anyhow::Result<()> {
                 .spawn()?;
             childs.push(child);
         } else {
-            let l_str = command.split(' ').map(|x| x.to_string()).collect::<Vec<_>>();
+            let l_str = command
+                .split(' ')
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>();
             let command = &l_str[0];
             let envs = get_environments(&config, command)?;
             println!("   DIR envs={:?}", envs);
@@ -293,7 +314,7 @@ fn main() -> anyhow::Result<()> {
     //
     // Running the commands iteratively
     //
-    let mut var_results : Vec<ResultSingleRun> = Vec::new();
+    let mut var_results: Vec<ResultSingleRun> = Vec::new();
     for iter in 0..config.n_iter {
         let var_result = execute_and_estimate_runtime(iter, &config)?;
         println!("var_result={:?}", var_result);
@@ -312,7 +333,7 @@ fn main() -> anyhow::Result<()> {
                 match var_results[iter].results[i_job][i_key] {
                     None => {
                         n_miss += 1;
-                    },
+                    }
                     Some(val) => {
                         sum_val += val;
                         count += 1.0;
@@ -322,12 +343,18 @@ fn main() -> anyhow::Result<()> {
             }
             let avg = sum_val / count;
             let key = &config.target_keys_hist[i_key];
-            println!("  key={} n_miss={} avg={} vals={:?}", key, n_miss, avg, vals);
+            println!(
+                "  key={} n_miss={} avg={} vals={:?}",
+                key, n_miss, avg, vals
+            );
         }
     }
     let n_fs = config.target_fault_success.len();
     for i_job in 0..n_job {
-        println!("Fault/Success metyrics for job={}", config.l_job_name[i_job]);
+        println!(
+            "Fault/Success metyrics for job={}",
+            config.l_job_name[i_job]
+        );
         for i_fs in 0..n_fs {
             let mut n_miss = 0;
             let mut sum_val = 0 as f64;
@@ -337,7 +364,7 @@ fn main() -> anyhow::Result<()> {
                 match var_results[iter].fault_success[i_job][i_fs] {
                     None => {
                         n_miss += 1;
-                    },
+                    }
                     Some(val) => {
                         sum_val += val;
                         count += 1.0;
@@ -349,7 +376,10 @@ fn main() -> anyhow::Result<()> {
             let key_s = &config.target_fault_success[i_fs].success;
             if vals.len() > 0 {
                 let avg = sum_val / count;
-                println!("  key={} / {} n_miss={} avg={} vals={:?}", key_f, key_s, n_miss, avg, vals);
+                println!(
+                    "  key={} / {} n_miss={} avg={} vals={:?}",
+                    key_f, key_s, n_miss, avg, vals
+                );
             } else {
                 println!("  No metric for{} / {}", key_f, key_s);
             }

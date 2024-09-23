@@ -1,24 +1,32 @@
 # linera_parsing_tools
 Some tools and manuals related to linera-protocol
 
-The usage of the system with `remote-net` is:
+## Reading data from the Prometheus service
 
-(A) Build the executables
+The tool
 ```
-cargo build --release --features metrics
+parsing_prometheus_run
 ```
+allows to parse the variables from the run in a specific time interval.
 
-(B) Run the `prometheus` tool with the `prometheus.yml` from this repository.
+## Running and obtaining the metrics
 
-(C) Running the linera net up
+The tool is
 ```
-./target/release/linera net up --policy-config devnet
+run_and_obtain_metrics
 ```
+allows to do the full set of operations from the compilation till the run.
+WARNING: When running it, no other linera process can run locally
 
-(D) Assign the environment variables `LINERA_WALLET` and `LINERA_STORAGE` as inidicated from above.
 
-(E) Run the tests with
+## Formatting and linting the source code
+
+Make sure to fix the lint errors reported by
 ```
-cargo test -p linera-service --features metrics,remote-net
+cargo clippy --all-targets --all-features
+```
+and format the code with
+```
+cargo +nightly fmt
 ```
 

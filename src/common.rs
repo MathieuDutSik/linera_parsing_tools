@@ -1,10 +1,10 @@
-extern crate yaml_rust;
-extern crate serde_json;
 extern crate chrono;
-use std::process::Command;
+extern crate serde_json;
+extern crate yaml_rust;
+use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use chrono::{Utc, DateTime, Duration, Datelike, Timelike};
+use std::process::Command;
 
 pub fn get_float(input: &str) -> f64 {
     let input = input.trim_matches(|c| c == '"').to_string();
@@ -13,7 +13,7 @@ pub fn get_float(input: &str) -> f64 {
 
 pub struct ReadData {
     pub min_time: usize,
-    pub entries: Vec<Vec<(usize,String)>>,
+    pub entries: Vec<Vec<(usize, String)>>,
     pub le: Option<f64>,
 }
 
@@ -33,8 +33,6 @@ fn get_time_string(ti: DateTime<Utc>) -> String {
     format!("{}-{}-{}T{}:{}:{}Z", year, month, day, hour, minute, second)
 }
 
-
-
 pub fn get_time_string_lower(time: DateTime<Utc>) -> String {
     let time = time - Duration::seconds(2);
     get_time_string(time)
@@ -45,7 +43,6 @@ pub fn get_time_string_upper(time: DateTime<Utc>) -> String {
     get_time_string(time)
 }
 
-
 pub fn get_request_string(datetime: DateTime<Utc>) -> String {
     let year = datetime.year();
     let month = datetime.month();
@@ -53,19 +50,25 @@ pub fn get_request_string(datetime: DateTime<Utc>) -> String {
     let hour = datetime.hour();
     let min = datetime.minute();
     let sec = datetime.second();
-    format!("{}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
+    format!(
+        "{}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, min, sec
+    )
 }
 
 pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> ReadData {
-    let mut min_time : usize = usize::MAX;
-    let mut map_job_name = BTreeMap::<String,usize>::new();
+    let mut min_time: usize = usize::MAX;
+    let mut map_job_name = BTreeMap::<String, usize>::new();
     let mut idx = 0;
     let n_job = l_job_name.len();
     for job_name in l_job_name {
         map_job_name.insert(job_name.clone(), idx);
         idx += 1;
     }
-    let request = format!("http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s", key, start_time, end_time);
+    let request = format!(
+        "http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s",
+        key, start_time, end_time
+    );
     println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
@@ -79,12 +82,12 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
     }
     let le = None;
     for entry in v["data"]["result"].as_array().unwrap() {
-        let job_name : String = entry["metric"]["job"].to_string();
+        let job_name: String = entry["metric"]["job"].to_string();
         let job_name = job_name.trim_matches(|c| c == '"').to_string();
         let mut values = BTreeMap::new();
         for value in entry["values"].as_array().unwrap() {
-            let unix_time : usize = value[0].as_u64().unwrap() as usize;
-            let inst_value : String = value[1].to_string();
+            let unix_time: usize = value[0].as_u64().unwrap() as usize;
+            let inst_value: String = value[1].to_string();
             if unix_time < min_time {
                 min_time = unix_time;
             }
@@ -97,12 +100,15 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         match map_job_name.get(&job_name) {
             Some(pos) => {
                 entries[*pos] = values_vect;
-            },
-            _ => {
-            },
+            }
+            _ => {}
         }
     }
-    ReadData { min_time, entries, le }
+    ReadData {
+        min_time,
+        entries,
+        le,
+    }
 }
 
 pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
@@ -116,7 +122,7 @@ pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
     let mut variables = Vec::new();
     let linera = "linera_";
     for entry in v["data"].as_array().unwrap() {
-        let entry : String = entry.to_string();
+        let entry: String = entry.to_string();
         let entry = entry.trim_matches(|c| c == '"').to_string();
         if entry.starts_with(linera) {
             let entry = entry[linera.len()..].to_string();
@@ -134,7 +140,7 @@ pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
         }
         if test1 {
             let len = var.len();
-            let var = var[..len-4].to_string();
+            let var = var[..len - 4].to_string();
             l_keys_hist.push(var);
         }
     }

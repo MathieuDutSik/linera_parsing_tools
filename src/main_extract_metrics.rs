@@ -1,14 +1,13 @@
-extern crate yaml_rust;
-extern crate serde_json;
 extern crate chrono;
+extern crate serde_json;
+extern crate yaml_rust;
 mod common;
-use std::time::Duration;
+use chrono::{DateTime, Utc};
 use std::io::Read;
+use std::time::Duration;
 use yaml_rust::YamlLoader;
-use chrono::{Utc, DateTime};
 
 use common::{get_float, get_request_string, read_key, read_linera_keys};
-
 
 fn main() {
     let args = std::env::args();
@@ -49,8 +48,12 @@ fn main() {
         let end_time = arguments[3].clone();
         println!("INPUT: start_time={:?}", start_time);
         println!("INPUT:   end_time={:?}", end_time);
-        let start_time: DateTime<Utc> = start_time.parse::<DateTime<Utc>>().expect("A UTC time (start)");
-        let end_time: DateTime<Utc> = end_time.parse::<DateTime<Utc>>().expect("A UTC time (start)");
+        let start_time: DateTime<Utc> = start_time
+            .parse::<DateTime<Utc>>()
+            .expect("A UTC time (start)");
+        let end_time: DateTime<Utc> = end_time
+            .parse::<DateTime<Utc>>()
+            .expect("A UTC time (start)");
         (start_time, end_time)
     };
     let end_time = get_request_string(end_time);
@@ -58,7 +61,7 @@ fn main() {
     println!("start_time={:?}", start_time);
     println!("  end_time={:?}", end_time);
     //
-    // Reading the Prometheus input files and reading 
+    // Reading the Prometheus input files and reading
     //
     let mut f = std::fs::File::open(prometheus_input).expect("a filestream f");
     let mut contents = String::new();
@@ -89,7 +92,7 @@ fn main() {
                 println!("key:{} job_name:{}", key, l_job_name[i]);
                 for idx in 1..len {
                     let value1 = &data.entries[i][idx].1;
-                    let value0 = &data.entries[i][idx-1].1;
+                    let value0 = &data.entries[i][idx - 1].1;
                     if value1 != value0 {
                         let value1 = get_float(value1);
                         let value0 = get_float(value0);
@@ -99,7 +102,7 @@ fn main() {
                         println!("delta_time={} delta_val={}", delta_time, delta_val);
                     }
                 }
-                let value_tot = &data.entries[i][len-1].1;
+                let value_tot = &data.entries[i][len - 1].1;
                 let value_tot = get_float(value_tot);
                 println!("    total_value={}", value_tot);
             }
@@ -130,25 +133,31 @@ fn main() {
                 for idx in 1..len_sum {
                     let value1 = &data_sum.entries[i][idx].1;
                     let value1 = get_float(value1);
-                    let value0 = &data_sum.entries[i][idx-1].1;
+                    let value0 = &data_sum.entries[i][idx - 1].1;
                     let value0 = get_float(value0);
                     let delta_sum = value1 - value0;
                     let count1 = &data_count.entries[i][idx].1;
-                    let count0 = &data_count.entries[i][idx-1].1;
+                    let count0 = &data_count.entries[i][idx - 1].1;
                     if count1 != count0 {
                         let count1 = get_float(count1);
                         let count0 = get_float(count0);
                         let delta_count = count1 - count0;
-                        let unix_time = data_sum.entries[i][idx-1].0;
+                        let unix_time = data_sum.entries[i][idx - 1].0;
                         let delta_time = unix_time - data_sum.min_time;
                         let avg = delta_sum / delta_count;
-                        println!("delta_time={} avg={}     count={}", delta_time, avg, delta_count);
+                        println!(
+                            "delta_time={} avg={}     count={}",
+                            delta_time, avg, delta_count
+                        );
                     }
                 }
                 let count_tot = get_float(&data_count.entries[i][len_sum - 1].1);
                 let value_tot = get_float(&data_sum.entries[i][len_sum - 1].1);
                 let avg = value_tot / count_tot;
-                println!("len_sum={} avg={}     count={} total={}", len_sum, avg, count_tot, value_tot);
+                println!(
+                    "len_sum={} avg={}     count={} total={}",
+                    len_sum, avg, count_tot, value_tot
+                );
             }
         }
         if n_write > 0 {
@@ -156,5 +165,8 @@ fn main() {
             n_hist_key_eff += 1;
         }
     }
-    println!("n_counter_key_eff={} n_hist_key_eff={}", n_counter_key_eff, n_hist_key_eff);
+    println!(
+        "n_counter_key_eff={} n_hist_key_eff={}",
+        n_counter_key_eff, n_hist_key_eff
+    );
 }
