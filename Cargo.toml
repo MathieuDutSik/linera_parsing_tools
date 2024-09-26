@@ -12,6 +12,10 @@ path = "src/main_extract_metrics.rs"
 name = "run_and_obtain_metrics"
 path = "src/main_iteration.rs"
 
+[[bin]]
+name = "run_iter_and_fail"
+path = "src/main_iter_and_fail.rs"
+
 [dependencies]
 anyhow = "1.0.80"
 sysinfo = "0.24.0"

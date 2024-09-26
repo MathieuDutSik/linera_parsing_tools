@@ -1,0 +1,5 @@
+{
+    "command": "cargo test --features storage-service -p linera-service end_non_fungible::storage",
+    "n_iter": 20,
+    "stop_at_one_failure": false
+}
