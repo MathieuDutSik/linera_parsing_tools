@@ -106,6 +106,43 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
     }
 }
 
+pub fn read_distribution_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> Vec<Vec<f64>> {
+    let key_sum = format!("linera_{}_sum", key);
+    let key_count = format!("linera_{}_count", key);
+    let data_sum = read_key(&key_sum, l_job_name, start_time, end_time);
+    let data_count = read_key(&key_sum, l_job_name, start_time, end_time);
+    let n_job = l_job_name.len();
+    let mut results = Vec::new();
+    for i in 0..n_job {
+        let len_sum = data_sum.entries[i].len();
+        let len_count = data_count.entries[i].len();
+        if len_sum != len_count {
+            println!("len_sum={} len_count={}", len_sum, len_count);
+            panic!("Not our assumptions");
+        }
+        let mut vals = Vec::new();
+        for idx in 1..len_sum {
+            let value1 = &data_sum.entries[i][idx].1;
+            let value1 = get_float(value1);
+            let value0 = &data_sum.entries[i][idx - 1].1;
+            let value0 = get_float(value0);
+            let delta_sum = value1 - value0;
+            let count1 = &data_count.entries[i][idx].1;
+            let count0 = &data_count.entries[i][idx - 1].1;
+            if count1 != count0 {
+                let count1 = get_float(count1);
+                let count0 = get_float(count0);
+                let delta_count = count1 - count0;
+                let val = delta_sum / delta_count;
+                vals.push(val);
+            }
+        }
+        results.push(vals);
+    }
+    results
+}
+
+
 pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
     let request = "http://localhost:9090/api/v1/label/__name__/values".to_string();
     let output = Command::new("curl")
@@ -141,3 +178,4 @@ pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
     }
     (l_keys_counter, l_keys_hist)
 }
+
