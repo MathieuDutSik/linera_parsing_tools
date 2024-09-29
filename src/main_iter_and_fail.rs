@@ -5,12 +5,11 @@ extern crate sysinfo;
 mod common;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::process::Command;
-use sysinfo::{ProcessExt, System, SystemExt};
+use sysinfo::{ProcessExt, SystemExt};
 
 use common::{get_float, get_time_string_lower, get_time_string_upper, read_key};
 
@@ -19,6 +18,7 @@ struct Config {
     command: String,
     n_iter: usize,
     stop_at_one_failure: bool,
+    stop_at_one_success: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -67,12 +67,17 @@ fn main() -> anyhow::Result<()> {
             .args(comm_args)
             .output()?;
         println!("output={:?}", output);
-        let code = output.status.code();
+        let code = output.status.code().unwrap();
         println!("code={:?}", code);
-        if code.unwrap() > 0 {
+        if code > 0 {
             n_fail += 1;
             if config.stop_at_one_failure {
-                println!("We reached one error");
+                println!("We reached one failure, end the computation");
+                return Ok(());
+            }
+        } else {
+            if config.stop_at_one_success {
+                println!("We reached one success, end the computation");
                 return Ok(());
             }
         }

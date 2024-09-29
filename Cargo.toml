@@ -16,6 +16,10 @@ path = "src/main_iteration.rs"
 name = "run_iter_and_fail"
 path = "src/main_iter_and_fail.rs"
 
+[[bin]]
+name = "run_iter_benchmarks"
+path = "src/main_iter_benchmarks.rs"
+
 [dependencies]
 anyhow = "1.0.80"
 sysinfo = "0.24.0"

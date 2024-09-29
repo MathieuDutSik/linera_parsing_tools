@@ -5,6 +5,9 @@ use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::process::Command;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::BufRead;
 
 pub fn get_float(input: &str) -> f64 {
     let input = input.trim_matches(|c| c == '"').to_string();
@@ -141,6 +144,61 @@ pub fn read_distribution_key(key: &str, l_job_name: &Vec<String>, start_time: &s
     }
     results
 }
+
+pub fn read_lines_of_file(file_name: &String) -> Vec<String> {
+    let file = File::open(file_name).expect("A file");
+    let reader = BufReader::new(file);
+    //
+    let mut lines = Vec::new();
+    for pre_line in reader.lines() {
+        let line = pre_line.expect("line");
+        lines.push(line);
+    }
+    lines
+}
+
+pub fn create_single_line(lines: Vec<String>) -> String {
+    let mut single_line = String::new();
+    for i in 0..lines.len() {
+        if i>0 {
+            single_line += " ";
+        }
+        single_line += &lines[i];
+    }
+    single_line
+}
+
+pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Option<f64> {
+    let target_ext = format!("{} ", target);
+    let l_strA = single_line.split(&target_ext).map(|x| x.to_string()).collect::<Vec<_>>();
+    if l_strA.len() != 2 {
+        return None;
+    }
+    let sec_strA = &l_strA[1];
+    let sep_str_micros = "µs";
+    let sep_str_millis = "ms";
+    let sec_strB = sec_strA.replace("[", " ");
+    let sec_strC = sec_strB.replace("]", " ");
+    let mut metrics_mus = Vec::new();
+    let l_strB = sec_strC.split(" ").map(|x| x.to_string()).collect::<Vec<_>>();
+    for i in 0..l_strB.len() {
+        if l_strB[i] == sep_str_micros {
+            let metric_mus : f64 = l_strB[i - 1].parse().unwrap();
+            metrics_mus.push(metric_mus);
+        }
+        if l_strB[i] == sep_str_millis {
+            let metric_millis : f64 = l_strB[i - 1].parse().unwrap();
+            let metric_mus = metric_millis * 1000.0;
+            metrics_mus.push(metric_mus);
+        }
+    }
+    println!("metrics_mus={:?}", metrics_mus);
+    if metrics_mus.len() < 3 {
+        panic!("We should have at least 3 entries");
+    }
+    Some(metrics_mus[1])
+}
+
 
 
 pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {

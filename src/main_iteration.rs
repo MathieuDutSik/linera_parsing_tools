@@ -12,7 +12,7 @@ use std::io::BufReader;
 use std::process::Command;
 use sysinfo::{ProcessExt, System, SystemExt};
 
-use common::{get_float, get_time_string_lower, get_time_string_upper, read_key};
+use common::{get_float, get_time_string_lower, get_time_string_upper, read_key, read_lines_of_file};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -72,18 +72,6 @@ fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap
         }
     }
     Ok(map)
-}
-
-fn read_lines_of_file(file_name: &String) -> Vec<String> {
-    let file = File::open(file_name).expect("A file");
-    let reader = BufReader::new(file);
-    //
-    let mut lines = Vec::new();
-    for pre_line in reader.lines() {
-        let line = pre_line.expect("line");
-        lines.push(line);
-    }
-    lines
 }
 
 fn get_runtime(file_name: &String, runtime_target: &String) -> f64 {
