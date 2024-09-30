@@ -170,8 +170,11 @@ pub fn create_single_line(lines: Vec<String>) -> String {
 
 pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Option<f64> {
     let target_ext = format!("{} ", target);
+//    println!("single_line={}", single_line);
+//    println!("target_ext=\"{}\"", target_ext);
     let l_strA = single_line.split(&target_ext).map(|x| x.to_string()).collect::<Vec<_>>();
-    if l_strA.len() != 2 {
+    if l_strA.len() < 2 {
+//        println!("|l_strA|={}", l_strA.len());
         return None;
     }
     let sec_strA = &l_strA[1];
@@ -192,7 +195,7 @@ pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Opti
             metrics_mus.push(metric_mus);
         }
     }
-    println!("metrics_mus={:?}", metrics_mus);
+//    println!("metrics_mus={:?}", metrics_mus);
     if metrics_mus.len() < 3 {
         panic!("We should have at least 3 entries");
     }

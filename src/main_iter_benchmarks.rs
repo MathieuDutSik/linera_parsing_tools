@@ -28,7 +28,7 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
     let mut vec = vec![None; n_target];
     let mut i_command = 0;
     for command in &config.commands {
-        println!("i_command={} iter={}", i_command, iter);
+        println!("i_command={} command={} iter={}", i_command, command, iter);
         let file_out_str = format!("OUT_ITER_BENCHMARK_{}_{}.out", iter, i_command);
         let file_out = File::create(file_out_str.clone()).expect("A file to have been created");
         let file_err_str = format!("OUT_ITER_BENCHMARK_{}_{}.out", iter, i_command);
@@ -53,6 +53,7 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
         let single_line = create_single_line(lines);
         for i_target in 0..n_target {
             let result = get_benchmark_average_metric_mus(&single_line, &config.targets[i_target]);
+            println!("i_target={} target={} result={:?}", i_target, &config.targets[i_target], result);
             if let Some(metric_mus) = result {
                 vec[i_target] = Some(metric_mus);
             }
@@ -99,12 +100,15 @@ fn main() -> anyhow::Result<()> {
     let n_samp = config.n_iter - config.n_skip;
     for i_target in 0..n_target {
         let mut sum_val = 0 as f64;
+        let mut vals = Vec::new();
         for iter in config.n_skip..config.n_iter {
             let val = results[iter][i_target];
+            vals.push(val);
             sum_val += val;
         }
         let avg = sum_val / (n_samp as f64);
         println!("target={} avg={}", config.targets[i_target], avg);
+        println!("    vals={:?}", vals);
     }
     println!("------ The runs have been done successfully -------");
     Ok(())
