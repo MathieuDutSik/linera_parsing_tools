@@ -20,6 +20,10 @@ path = "src/main_iter_and_fail.rs"
 name = "run_iter_benchmarks"
 path = "src/main_iter_benchmarks.rs"
 
+[[bin]]
+name = "run_sequence_calls"
+path = "src/main_sequence_calls.rs"
+
 [dependencies]
 anyhow = "1.0.80"
 sysinfo = "0.24.0"

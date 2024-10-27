@@ -1,6 +1,6 @@
 {
     "commands": [
-        "cargo bench store_rocksdb_ --features rocksdb"
+        "cargo bench store_storage_service_"
     ],
     "n_iter": 10,
     "n_skip": 1,

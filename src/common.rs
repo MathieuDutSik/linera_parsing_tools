@@ -113,7 +113,7 @@ pub fn read_distribution_key(key: &str, l_job_name: &Vec<String>, start_time: &s
     let key_sum = format!("linera_{}_sum", key);
     let key_count = format!("linera_{}_count", key);
     let data_sum = read_key(&key_sum, l_job_name, start_time, end_time);
-    let data_count = read_key(&key_sum, l_job_name, start_time, end_time);
+    let data_count = read_key(&key_count, l_job_name, start_time, end_time);
     let n_job = l_job_name.len();
     let mut results = Vec::new();
     for i in 0..n_job {
@@ -172,25 +172,25 @@ pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Opti
     let target_ext = format!("{} ", target);
 //    println!("single_line={}", single_line);
 //    println!("target_ext=\"{}\"", target_ext);
-    let l_strA = single_line.split(&target_ext).map(|x| x.to_string()).collect::<Vec<_>>();
-    if l_strA.len() < 2 {
+    let l_str_a = single_line.split(&target_ext).map(|x| x.to_string()).collect::<Vec<_>>();
+    if l_str_a.len() < 2 {
 //        println!("|l_strA|={}", l_strA.len());
         return None;
     }
-    let sec_strA = &l_strA[1];
+    let sec_str_a = &l_str_a[1];
     let sep_str_micros = "µs";
     let sep_str_millis = "ms";
-    let sec_strB = sec_strA.replace("[", " ");
-    let sec_strC = sec_strB.replace("]", " ");
+    let sec_str_b = sec_str_a.replace("[", " ");
+    let sec_str_c = sec_str_b.replace("]", " ");
     let mut metrics_mus = Vec::new();
-    let l_strB = sec_strC.split(" ").map(|x| x.to_string()).collect::<Vec<_>>();
-    for i in 0..l_strB.len() {
-        if l_strB[i] == sep_str_micros {
-            let metric_mus : f64 = l_strB[i - 1].parse().unwrap();
+    let l_str_b = sec_str_c.split(" ").map(|x| x.to_string()).collect::<Vec<_>>();
+    for i in 0..l_str_b.len() {
+        if l_str_b[i] == sep_str_micros {
+            let metric_mus : f64 = l_str_b[i - 1].parse().unwrap();
             metrics_mus.push(metric_mus);
         }
-        if l_strB[i] == sep_str_millis {
-            let metric_millis : f64 = l_strB[i - 1].parse().unwrap();
+        if l_str_b[i] == sep_str_millis {
+            let metric_millis : f64 = l_str_b[i - 1].parse().unwrap();
             let metric_mus = metric_millis * 1000.0;
             metrics_mus.push(metric_mus);
         }
