@@ -3,14 +3,10 @@ extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
 mod common;
-use chrono::{DateTime, Utc};
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufRead;
 use std::io::BufReader;
 use std::process::Command;
-use sysinfo::{ProcessExt, System, SystemExt};
 use common::{read_lines_of_file, create_single_line, get_benchmark_average_metric_mus};
 
 #[derive(Deserialize)]

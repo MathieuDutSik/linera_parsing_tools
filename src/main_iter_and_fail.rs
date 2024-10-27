@@ -3,15 +3,10 @@ extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
 mod common;
-use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::fs::File;
-use std::io::BufRead;
 use std::io::BufReader;
 use std::process::Command;
-use sysinfo::{ProcessExt, SystemExt};
-
-use common::{get_float, get_time_string_lower, get_time_string_upper, read_key};
 
 #[derive(Deserialize)]
 struct Config {
