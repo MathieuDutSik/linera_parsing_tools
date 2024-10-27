@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate chrono;
 extern crate serde_json;
 extern crate yaml_rust;
@@ -174,7 +176,6 @@ pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Opti
 //    println!("target_ext=\"{}\"", target_ext);
     let l_str_a = single_line.split(&target_ext).map(|x| x.to_string()).collect::<Vec<_>>();
     if l_str_a.len() < 2 {
-//        println!("|l_strA|={}", l_strA.len());
         return None;
     }
     let sec_str_a = &l_str_a[1];
@@ -195,14 +196,11 @@ pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Opti
             metrics_mus.push(metric_mus);
         }
     }
-//    println!("metrics_mus={:?}", metrics_mus);
     if metrics_mus.len() < 3 {
         panic!("We should have at least 3 entries");
     }
     Some(metrics_mus[1])
 }
-
-
 
 pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
     let request = "http://localhost:9090/api/v1/label/__name__/values".to_string();
