@@ -1,0 +1,37 @@
+{
+    "commands": [
+        "cargo bench store_ --features rocksdb,dynamodb,scylladb"
+    ],
+    "n_iter": 10,
+    "n_skip": 1,
+    "targets": [
+        "store_rocksdb_read_value_bytes",
+        "store_rocksdb_read_multi_values_bytes",
+        "store_rocksdb_contains_key",
+        "store_rocksdb_contains_keys",
+        "store_rocksdb_find_keys_by_prefix",
+        "store_rocksdb_find_key_values_by_prefix",
+        "store_rocksdb_write_batch",
+        "store_dynamodb_read_value_bytes",
+        "store_dynamodb_read_multi_values_bytes",
+        "store_dynamodb_contains_key",
+        "store_dynamodb_contains_keys",
+        "store_dynamodb_find_keys_by_prefix",
+        "store_dynamodb_find_key_values_by_prefix",
+        "store_dynamodb_write_batch",
+        "store_scylladb_read_value_bytes",
+        "store_scylladb_read_multi_values_bytes",
+        "store_scylladb_contains_key",
+        "store_scylladb_contains_keys",
+        "store_scylladb_find_keys_by_prefix",
+        "store_scylladb_find_key_values_by_prefix",
+        "store_scylladb_write_batch",
+        "store_memory_read_value_bytes",
+        "store_memory_read_multi_values_bytes",
+        "store_memory_contains_key",
+        "store_memory_contains_keys",
+        "store_memory_find_keys_by_prefix",
+        "store_memory_find_key_values_by_prefix",
+        "store_memory_write_batch",
+    ]
+}
