@@ -1,0 +1,16 @@
+{
+    "commands": [
+        "cargo bench store_rocksdb_ --features rocksdb"
+    ],
+    "n_iter": 10,
+    "n_skip": 1,
+    "targets": [
+        "store_storage_service_read_value_bytes",
+        "store_storage_service_read_multi_values_bytes",
+        "store_storage_service_contains_key",
+        "store_storage_service_contains_keys",
+        "store_storage_service_find_keys_by_prefix",
+        "store_storage_service_find_key_values_by_prefix",
+        "store_storage_service_write_batch"
+    ]
+}

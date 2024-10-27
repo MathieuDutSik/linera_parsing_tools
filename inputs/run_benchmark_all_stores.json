@@ -32,6 +32,6 @@
         "store_memory_contains_keys",
         "store_memory_find_keys_by_prefix",
         "store_memory_find_key_values_by_prefix",
-        "store_memory_write_batch",
+        "store_memory_write_batch"
     ]
 }
