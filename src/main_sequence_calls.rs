@@ -2,7 +2,6 @@ extern crate chrono;
 extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
-mod common;
 use serde::Deserialize;
 use std::path::Path;
 use std::fs::File;
@@ -37,11 +36,13 @@ fn main() -> anyhow::Result<()> {
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader)?;
     let n_command = config.directories.len();
+    println!("n_command={}", n_command);
     for i_command in 0..n_command {
         let directory = config.directories[i_command].clone();
         let command = config.commands[i_command].clone();
         let stdout = config.stdouts[i_command].clone();
         let stderr = config.stderrs[i_command].clone();
+        println!("i_command={} directory={} command={} stdout={} stderr={}", i_command, directory, command, stdout, stderr);
         //
         let file_out = File::create(stdout)?;
         let file_err = File::create(stderr)?;
@@ -54,6 +55,7 @@ fn main() -> anyhow::Result<()> {
         for i in 1..l_str.len() {
             comm_args.push(l_str[i].clone());
         }
+        println!("the_command={} comm_args={:?}", the_command, comm_args);
         let path = Path::new(&directory);
         let output = Command::new(the_command)
             .current_dir(path)

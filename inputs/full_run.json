@@ -1,0 +1,26 @@
+{
+    "directories": [
+        "/Users/mathieu/GITlineraOpen/GITbenchmarks_storage_service/linera-protocol_second/linera-views",
+        "/Users/mathieu/GITlineraOpen/GITbenchmarks_storage_service/linera-protocol_second/linera-storage-service",
+        "/Users/mathieu/GITlineraOpen/GITlru_improvement/linera-protocol_second",
+        "/Users/mathieu/GITlineraOpen/GITreferenceFirst/linera-protocol"
+    ],
+    "commands": [
+        "run_iter_benchmarks run_benchmark_all_stores.json",
+        "run_iter_benchmarks run_benchmark_store_storage_service.json",
+        "run_and_obtain_metrics run_release_scylla_amm.json",
+        "run_and_obtain_metrics run_release_scylla_amm.json"
+    ],
+    "stdouts": [
+        "OUT_all_stores",
+        "OUT_storage_service",
+        "OUT_amm_lru",
+        "OUT_amm_main"
+    ],
+    "stderrs": [
+        "ERR_all_stores",
+        "ERR_storage_service",
+        "ERR_amm_lru",
+        "ERR_amm_main"
+    ]
+}

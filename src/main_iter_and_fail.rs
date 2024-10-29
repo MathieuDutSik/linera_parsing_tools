@@ -2,7 +2,6 @@ extern crate chrono;
 extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
-mod common;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::BufReader;
