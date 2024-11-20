@@ -28,6 +28,10 @@ fn main() {
         println!();
         println!("   FileI: The input file to Prometheus, e.g. prometheus.yml");
         println!("interval: The time scale in second to search from");
+        println!();
+        println!();
+        println!("or start=2024-09-10T09:21:40Z");
+        println!(" and end=2024-09-10T09:22:42Z");
         std::process::exit(1)
     }
     let program_name = arguments[0].clone();
@@ -56,10 +60,18 @@ fn main() {
             .expect("A UTC time (start)");
         (start_time, end_time)
     };
-    let end_time = get_request_string(end_time);
-    let start_time = get_request_string(start_time);
+    let duration = end_time.signed_duration_since(start_time);
+    let num_sec = duration.num_seconds();
+    println!("num_sec={}", num_sec);
+    if num_sec > 11000 {
+        print!("We can have at most 11000 seconds in the duration");
+        panic!("Put a smaller duration for the analysis");
+    }
+    let end_time_str = get_request_string(end_time);
+    let start_time_str = get_request_string(start_time);
     println!("start_time={:?}", start_time);
     println!("  end_time={:?}", end_time);
+
     //
     // Reading the Prometheus input files and reading
     //
@@ -83,7 +95,7 @@ fn main() {
     let mut n_counter_key_eff = 0;
     for key in l_keys_counter.clone() {
         let key = format!("linera_{}", key);
-        let data = read_key(&key, &l_job_name, &start_time, &end_time);
+        let data = read_key(&key, &l_job_name, &start_time_str, &end_time_str);
         let mut n_write = 0;
         for i in 0..n_job {
             let len = data.entries[i].len();
@@ -116,9 +128,9 @@ fn main() {
     let mut n_hist_key_eff = 0;
     for key in l_keys_hist.clone() {
         let key_count = format!("linera_{}_count", key);
-        let data_count = read_key(&key_count, &l_job_name, &start_time, &end_time);
+        let data_count = read_key(&key_count, &l_job_name, &start_time_str, &end_time_str);
         let key_sum = format!("linera_{}_sum", key);
-        let data_sum = read_key(&key_sum, &l_job_name, &start_time, &end_time);
+        let data_sum = read_key(&key_sum, &l_job_name, &start_time_str, &end_time_str);
         let mut n_write = 0;
         for i in 0..n_job {
             let len_sum = data_sum.entries[i].len();
