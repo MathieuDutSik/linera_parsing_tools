@@ -61,6 +61,45 @@ pub fn get_request_string(datetime: DateTime<Utc>) -> String {
     )
 }
 
+pub fn get_duration_as_string(duration: Duration) -> String {
+    let num_sec = duration.num_seconds();
+    let num_sec = if num_sec > 0 {
+        num_sec
+    } else {
+        -num_sec
+    };
+    let n_day = num_sec / 86400;
+    let n_hour = (num_sec % 86400) / 3600;
+    let n_min = (num_sec % 3600) / 60;
+    if n_day > 0 {
+        return format!("n_day={} n_hour={} n_min={}", n_day, n_hour, n_min);
+    }
+    if n_hour > 0 {
+        return format!("n_hour={} n_min={}", n_hour, n_min);
+    }
+    format!("n_min={}", n_min)
+}
+
+
+pub fn get_unit_of_key(key: &str) -> String {
+    if key.ends_with("latency") {
+        return " ms".to_string();
+    }
+    if key.ends_with("runtime") {
+        return " ms".to_string();
+    }
+    "".to_string()
+}
+
+pub fn nice_float_str(value: f64) -> String {
+    if value > 1 as f64 {
+        return format!("{:.2}", value);
+    }
+    format!("{:.5}", value)
+}
+
+
+
 pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> ReadData {
     let mut min_time: usize = usize::MAX;
     let mut map_job_name = BTreeMap::<String, usize>::new();
@@ -72,7 +111,7 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         "http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s",
         key, start_time, end_time
     );
-    println!("request={}", request);
+//    println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
         .output()

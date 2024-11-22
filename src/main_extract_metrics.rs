@@ -2,12 +2,12 @@ extern crate chrono;
 extern crate serde_json;
 extern crate yaml_rust;
 mod common;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Local};
 use std::io::Read;
 use std::time::Duration;
 use yaml_rust::YamlLoader;
 
-use common::{get_float, get_request_string, read_key, read_linera_keys};
+use common::{get_float, get_duration_as_string, get_unit_of_key, nice_float_str, get_request_string, read_key, read_linera_keys};
 
 fn main() {
     let args = std::env::args();
@@ -30,20 +30,20 @@ fn main() {
         println!("interval: The time scale in second to search from");
         println!();
         println!();
-        println!("or start=2024-09-10T09:21:40Z");
-        println!(" and end=2024-09-10T09:22:42Z");
+        println!("or start=2024-09-10T09:21:40Z (as local time)");
+        println!(" and end=2024-09-10T09:22:42Z (as local time)");
         std::process::exit(1)
     }
     let program_name = arguments[0].clone();
     let prometheus_input = arguments[1].clone();
     println!("program_name={:?}", program_name);
     println!("prometheus_input={:?}", prometheus_input);
-    let (start_time, end_time) = if arguments.len() == 3 {
+    let (start_time_local, end_time_local) = if arguments.len() == 3 {
         let interval = arguments[2].clone();
         println!("interval={:?}", interval);
         let interval = interval.parse::<u64>().expect("A u64 integer");
         //
-        let end_time: DateTime<Utc> = Utc::now();
+        let end_time: DateTime<Local> = Local::now();
         let duration_to_subtract = Duration::from_secs(interval);
         let start_time = end_time - duration_to_subtract;
         (start_time, end_time)
@@ -52,14 +52,20 @@ fn main() {
         let end_time = arguments[3].clone();
         println!("INPUT: start_time={:?}", start_time);
         println!("INPUT:   end_time={:?}", end_time);
-        let start_time: DateTime<Utc> = start_time
-            .parse::<DateTime<Utc>>()
+        let start_time: DateTime<Local> = start_time
+            .parse::<DateTime<Local>>()
             .expect("A UTC time (start)");
-        let end_time: DateTime<Utc> = end_time
-            .parse::<DateTime<Utc>>()
+        let end_time: DateTime<Local> = end_time
+            .parse::<DateTime<Local>>()
             .expect("A UTC time (start)");
         (start_time, end_time)
     };
+    println!("start_time_local={:?}", start_time_local);
+    println!("  end_time_local={:?}", end_time_local);
+    let start_time = start_time_local.with_timezone(&Utc);
+    let end_time = end_time_local.with_timezone(&Utc);
+    println!("start_time={:?}", start_time);
+    println!("  end_time={:?}", end_time);
     let duration = end_time.signed_duration_since(start_time);
     let num_sec = duration.num_seconds();
     println!("num_sec={}", num_sec);
@@ -69,8 +75,19 @@ fn main() {
     }
     let end_time_str = get_request_string(end_time);
     let start_time_str = get_request_string(start_time);
-    println!("start_time={:?}", start_time);
-    println!("  end_time={:?}", end_time);
+    //
+    // Setting up additional
+    //
+    let mut print_all_jobs = false;
+    let mut print_global = true;
+    for arg in &arguments[2..] {
+        if arg == "print_all_jobs" {
+            print_all_jobs = true;
+        }
+        if arg == "no_print_global" {
+            print_global = false;
+        }
+    }
 
     //
     // Reading the Prometheus input files and reading
@@ -132,6 +149,9 @@ fn main() {
         let key_sum = format!("linera_{}_sum", key);
         let data_sum = read_key(&key_sum, &l_job_name, &start_time_str, &end_time_str);
         let mut n_write = 0;
+        let mut alljobs_str = String::new();
+        let mut value_glob = 0 as f64;
+        let mut count_glob = 0 as f64;
         for i in 0..n_job {
             let len_sum = data_sum.entries[i].len();
             let len_count = data_count.entries[i].len();
@@ -141,7 +161,7 @@ fn main() {
             }
             if len_sum > 1 {
                 n_write += 1;
-                println!("key:{} job_name:{}", key, l_job_name[i]);
+                alljobs_str += &format!("key:{} job_name:{}", key, l_job_name[i]);
                 for idx in 1..len_sum {
                     let value1 = &data_sum.entries[i][idx].1;
                     let value1 = get_float(value1);
@@ -157,23 +177,28 @@ fn main() {
                         let unix_time = data_sum.entries[i][idx - 1].0;
                         let delta_time = unix_time - data_sum.min_time;
                         let avg = delta_sum / delta_count;
-                        println!(
-                            "delta_time={} avg={}     count={}",
-                            delta_time, avg, delta_count
-                        );
+                        alljobs_str += &format!("delta_time={} avg={} count={}\n", delta_time, avg, delta_count);
                     }
                 }
                 let count_tot = get_float(&data_count.entries[i][len_sum - 1].1);
                 let value_tot = get_float(&data_sum.entries[i][len_sum - 1].1);
+                count_glob += count_tot;
+                value_glob += value_tot;
                 let avg = value_tot / count_tot;
-                println!(
-                    "len_sum={} avg={}     count={} total={}",
-                    len_sum, avg, count_tot, value_tot
-                );
+                alljobs_str += &format!("   count={}/{} avg={}\n", count_tot, len_sum, avg);
             }
         }
         if n_write > 0 {
-            println!();
+            if print_all_jobs {
+                print!("{}", alljobs_str);
+            }
+            if print_global {
+                let avg_glob = value_glob / count_glob;
+                let unit = get_unit_of_key(&key);
+                let str_avg = nice_float_str(avg_glob);
+                println!("key: {} avg_glob={}{}", key, str_avg, unit);
+//                println!("key: {} count_glob={} avg_glob={}", key, count_glob, avg_glob);
+            }
             n_hist_key_eff += 1;
         }
     }
@@ -181,4 +206,13 @@ fn main() {
         "n_counter_key_eff={} n_hist_key_eff={}",
         n_counter_key_eff, n_hist_key_eff
     );
+    let curr_time_local: DateTime<Local> = Local::now();
+    let curr_time_utc: DateTime<Utc> = Utc::now();
+    println!("curr_time_local={} curr_time_utc={}", curr_time_local, curr_time_utc);
+    let duration_curr_start = start_time_local.signed_duration_since(curr_time_local);
+    println!("|curr - start| = {}", get_duration_as_string(duration_curr_start));
+    let duration_curr_end = end_time_local.signed_duration_since(curr_time_local);
+    println!("|curr - end|   = {}", get_duration_as_string(duration_curr_end));
+
+
 }
