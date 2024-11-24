@@ -1,0 +1,22 @@
+{
+    "log_file": "RES2_run01",
+    "entries": [
+        "Closing chain confirmed",
+        "Transfer confirmed",
+        "Application published and created",
+        "Application created",
+        "Opening a new chain confirmed",
+        "Chain linked to key",
+        "Key generated",
+        "Wallet initialized",
+        "Local balance obtained",
+        "Synchronized chain information",
+        "Balance obtained",
+        "Opening a new multi-owner chain confirmed",
+        "Data blob published",
+        "Data blob read",
+        "Processed incoming messages",
+        "Bytecode published",
+        "Operation confirmed"
+    ]
+}
