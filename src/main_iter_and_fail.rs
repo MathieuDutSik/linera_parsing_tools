@@ -2,10 +2,12 @@ extern crate chrono;
 extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
+mod common;
 use serde::Deserialize;
 use std::fs::File;
-use std::io::BufReader;
 use std::process::Command;
+
+use common::read_config_file;
 
 #[derive(Deserialize)]
 struct Config {
@@ -30,9 +32,7 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1)
     }
     let file_input = &arguments[1];
-    let file = File::open(file_input)?;
-    let reader = BufReader::new(file);
-    let config: Config = serde_json::from_reader(reader)?;
+    let config = read_config_file::<Config>(file_input)?;
     let full_command = config.command;
     println!("full_command={:?}", full_command);
     let l_str = full_command

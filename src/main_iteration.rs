@@ -7,11 +7,10 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufReader;
 use std::process::Command;
 use sysinfo::{ProcessExt, System, SystemExt};
 
-use common::{get_float, get_time_string_lower, get_time_string_upper, read_key, read_lines_of_file};
+use common::{get_float, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -241,9 +240,7 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1)
     }
     let file_input = &arguments[1];
-    let file = File::open(file_input)?;
-    let reader = BufReader::new(file);
-    let config: Config = serde_json::from_reader(reader)?;
+    let config = read_config_file::<Config>(file_input)?;
     println!("commands={:?}", config.commands);
     let mut childs = Vec::new();
     for (i_command, command) in config.commands.iter().enumerate() {

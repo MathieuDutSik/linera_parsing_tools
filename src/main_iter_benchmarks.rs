@@ -5,9 +5,8 @@ extern crate sysinfo;
 mod common;
 use serde::Deserialize;
 use std::fs::File;
-use std::io::BufReader;
 use std::process::Command;
-use common::{read_lines_of_file, create_single_line, get_benchmark_average_metric_mus};
+use common::{read_config_file, read_lines_of_file, create_single_line, get_benchmark_average_metric_mus};
 
 #[derive(Deserialize)]
 struct Config {
@@ -83,10 +82,7 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1)
     }
     let file_input = &arguments[1];
-    let file = File::open(file_input)?;
-    let reader = BufReader::new(file);
-    let config: Config = serde_json::from_reader(reader)?;
-
+    let config = read_config_file::<Config>(file_input)?;
     let mut results = Vec::new();
     for iter in 0..config.n_iter {
         let result = get_metrics_mus(&config, iter);

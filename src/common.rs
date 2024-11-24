@@ -5,6 +5,7 @@ extern crate serde_json;
 extern crate yaml_rust;
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use serde_json::Value;
+use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 use std::process::Command;
 use std::fs::File;
@@ -98,7 +99,12 @@ pub fn nice_float_str(value: f64) -> String {
     format!("{:.5}", value)
 }
 
-
+pub fn read_config_file<Config: DeserializeOwned>(file_input: &str) -> anyhow::Result<Config> {
+    let file = File::open(file_input)?;
+    let reader = BufReader::new(file);
+    let config: Config = serde_json::from_reader(reader)?;
+    Ok(config)
+}
 
 pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> ReadData {
     let mut min_time: usize = usize::MAX;
