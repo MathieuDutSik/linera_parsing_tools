@@ -37,6 +37,7 @@ struct Config {
     n_iter: usize,
     skip: usize,
     kill_after_work: Vec<String>,
+    print_all_vals: bool,
 }
 
 /*
@@ -346,6 +347,10 @@ fn main() -> anyhow::Result<()> {
         println!("var_result={:?}", var_result);
         var_results.push(var_result);
     }
+    //
+    // Printing the prometheus keys of histogram
+    //
+    println!("-------------- Prometheus Keys histograms ---------------");
     let n_key = config.target_prometheus_keys_hist.len();
     let n_job = config.l_job_name.len();
     for i_job in 0..n_job {
@@ -369,12 +374,17 @@ fn main() -> anyhow::Result<()> {
             }
             let avg = sum_val / count;
             let key = &config.target_prometheus_keys_hist[i_key];
-            println!(
-                "  key={} n_miss={} avg={} vals={:?}",
-                key, n_miss, avg, vals
-            );
+            print!("  key={} n_miss={} avg={}", key, n_miss, avg);
+            if config.print_all_vals {
+                print!(" vals={:?}", vals);
+            }
+            println!();
         }
     }
+    //
+    // Printing the fault/success statistics
+    //
+    println!("--------------- Prometheus fault/success statistics -------------");
     let n_fs = config.target_prometheus_fault_success.len();
     for i_job in 0..n_job {
         println!(
@@ -402,16 +412,57 @@ fn main() -> anyhow::Result<()> {
             let key_s = &config.target_prometheus_fault_success[i_fs].success;
             if vals.len() > 0 {
                 let avg = sum_val / count;
-                println!(
-                    "  key={} / {} n_miss={} avg={} vals={:?}",
-                    key_f, key_s, n_miss, avg, vals
+                print!(
+                    "  key={} / {} n_miss={} avg={}",
+                    key_f, key_s, n_miss, avg
                 );
+                if config.print_all_vals {
+                    print!(" vals={:?}", vals);
+                }
+                println!();
             } else {
                 println!("  No metric for{} / {}", key_f, key_s);
             }
         }
     }
-
+    //
+    // Printing the log metrics
+    //
+    println!("---------------- Log key metrics ----------------");
+    let n_log_keys = config.target_log_keys.len();
+    for i_log_key in 0..n_log_keys {
+        let key = config.target_log_keys[i_log_key].clone();
+        let mut sum_val = 0 as f64;
+        let mut count = 0;
+        let mut n_miss = 0;
+        let mut vals = Vec::new();
+        for iter in config.skip..config.n_iter {
+            match var_results[iter].log_key_metrics[i_log_key] {
+                None => {
+                    n_miss += 1;
+                }
+                Some(val) => {
+                    sum_val += val;
+                    count += 1;
+                    vals.push(val);
+                }
+            }
+        }
+        if count > 0 {
+            let avg = sum_val / (count as f64);
+            print!("key={} avg={}", key, avg);
+            if config.print_all_vals {
+                print!(" vals={:?}", vals);
+            }
+            println!();
+        } else {
+            println!("The key={} did not match anything in the log n_miss={}", key, n_miss);
+        }
+    }
+    //
+    // Printing the total runtime
+    //
+    println!("------------- The total runtime of the test ------------");
     let mut sum_val = 0 as f64;
     let mut count = 0 as f64;
     let mut vals = Vec::new();
@@ -422,7 +473,11 @@ fn main() -> anyhow::Result<()> {
         vals.push(val);
     }
     let avg = sum_val / count;
-    println!("runtime, avg={} vals={:?}", avg, vals);
+    print!("runtime, avg={}", avg);
+    if config.print_all_vals {
+        print!(" vals={:?}", vals)
+    }
+    println!();
     kill_after_work(&config);
     Ok(())
 }
