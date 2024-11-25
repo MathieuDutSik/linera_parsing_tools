@@ -29,8 +29,9 @@ struct Config {
     environments: Vec<SingleEnvironmentList>,
     commands: Vec<String>,
     critical_command: String,
-    target_keys_hist: Vec<String>,
-    target_fault_success: Vec<SingleFaultSuccess>,
+    target_prometheus_keys_hist: Vec<String>,
+    target_log_keys: Vec<String>,
+    target_prometheus_fault_success: Vec<SingleFaultSuccess>,
     runtime_target: String,
     l_job_name: Vec<String>,
     n_iter: usize,
@@ -43,8 +44,9 @@ Results from the run, the entries are by the job_name, and then by the variable 
 */
 #[derive(Debug)]
 struct ResultSingleRun {
-    results: Vec<Vec<Option<f64>>>,
-    fault_success: Vec<Vec<Option<f64>>>,
+    prometheus_hist: Vec<Vec<Option<f64>>>,
+    prometheus_fault_success: Vec<Vec<Option<f64>>>,
+    log_key_metrics: Vec<Option<f64>>,
     runtime: f64,
 }
 
@@ -97,30 +99,30 @@ fn get_runtime(file_name: &String, runtime_target: &String) -> f64 {
     panic!("Failed to find an entry that matches");
 }
 
-fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
+fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
     let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
     let file_err_str = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
     println!(
-        "execute_and_estimate_runtime file_out_str={} file_err_str={}",
+        "single_execution file_out_str={} file_err_str={}",
         file_out_str, file_err_str
     );
     let file_out = File::create(file_out_str.clone())?;
-    let file_err = File::create(file_err_str)?;
+    let file_err = File::create(file_err_str.clone())?;
     let start_time: DateTime<Utc> = Utc::now();
     let envs = get_environments(config, &config.critical_command)?;
-    println!("execute_and_estimate_runtime envs={:?}", envs);
+    println!("single_execution envs={:?}", envs);
     let l_str = config
         .critical_command
         .split(' ')
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
     let command = &l_str[0];
-    println!("execute_and_estimate_runtime command={}", command);
+    println!("single_execution command={}", command);
     let mut comm_args = Vec::new();
     for i in 1..l_str.len() {
         comm_args.push(l_str[i].clone());
     }
-    println!("execute_and_estimate_runtime comm_args={:?}", comm_args);
+    println!("single_execution comm_args={:?}", comm_args);
     let _output = Command::new(command)
         .stdout::<File>(file_out)
         .stderr::<File>(file_err)
@@ -135,18 +137,21 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
         "start_time_str={} end_time_str={}",
         start_time_str, end_time_str
     );
-    let mut results: Vec<Vec<Option<f64>>> = Vec::new();
+    //
+    // The Prometheus keys
+    //
+    let mut prometheus_hist: Vec<Vec<Option<f64>>> = Vec::new();
     let n_job = config.l_job_name.len();
-    let n_keys = config.target_keys_hist.len();
+    let n_keys = config.target_prometheus_keys_hist.len();
     for _i_job in 0..n_job {
         let mut v = Vec::new();
         for _i_key in 0..n_keys {
             v.push(None);
         }
-        results.push(v);
+        prometheus_hist.push(v);
     }
     for i_key in 0..n_keys {
-        let key = &config.target_keys_hist[i_key];
+        let key = &config.target_prometheus_keys_hist[i_key];
         let key_sum = format!("linera_{}_sum", key);
         let key_count = format!("linera_{}_count", key);
         let data_sum = read_key(&key_sum, &config.l_job_name, &start_time_str, &end_time_str);
@@ -162,22 +167,25 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
                 let count_tot = get_float(&data_count.entries[i_job][len - 1].1);
                 let value_tot = get_float(&data_sum.entries[i_job][len - 1].1);
                 let avg = value_tot / count_tot;
-                results[i_job][i_key] = Some(avg);
+                prometheus_hist[i_job][i_key] = Some(avg);
             }
         }
     }
-    let mut fault_success: Vec<Vec<Option<f64>>> = Vec::new();
-    let n_fs = config.target_fault_success.len();
+    //
+    // The Prometheus fault success variables
+    //
+    let mut prometheus_fault_success: Vec<Vec<Option<f64>>> = Vec::new();
+    let n_fs = config.target_prometheus_fault_success.len();
     for _i_job in 0..n_job {
         let mut v = Vec::new();
         for _i_fs in 0..n_fs {
             v.push(None);
         }
-        fault_success.push(v);
+        prometheus_fault_success.push(v);
     }
     for i_fs in 0..n_fs {
-        let key_f = format!("linera_{}", config.target_fault_success[i_fs].fault);
-        let key_s = format!("linera_{}", config.target_fault_success[i_fs].success);
+        let key_f = format!("linera_{}", config.target_prometheus_fault_success[i_fs].fault);
+        let key_s = format!("linera_{}", config.target_prometheus_fault_success[i_fs].success);
         let data_f = read_key(&key_f, &config.l_job_name, &start_time_str, &end_time_str);
         let data_s = read_key(&key_s, &config.l_job_name, &start_time_str, &end_time_str);
         for i_job in 0..n_job {
@@ -187,14 +195,50 @@ fn execute_and_estimate_runtime(iter: usize, config: &Config) -> anyhow::Result<
                 let count_f = get_float(&data_f.entries[i_job][len_f - 1].1);
                 let count_s = get_float(&data_s.entries[i_job][len_s - 1].1);
                 let perf = count_s / (count_f + count_s);
-                fault_success[i_job][i_fs] = Some(perf);
+                prometheus_fault_success[i_job][i_fs] = Some(perf);
             }
         }
     }
+    //
+    // The extraction of log metrics
+    //
+    let mut log_key_metrics: Vec<Option<f64>> = Vec::new();
+    let n_log_keys = config.target_log_keys.len();
+    let lines = read_lines_of_file(&file_err_str);
+    for i_log_key in 0..n_log_keys {
+        let key = &config.target_log_keys[i_log_key];
+        let mut n_ms = 0 as f64;
+        let mut count = 0;
+        for line in &lines {
+            if line.ends_with("ms") {
+                let l_str = line.split(&*key).collect::<Vec<_>>();
+                if l_str.len() == 2 {
+                    let sec_ent = l_str[1];
+                    let sec_sel = sec_ent.chars()
+                        .filter(|c| c.is_numeric())
+                        .collect::<String>();
+                    let value = sec_sel.parse::<u64>().expect("a numerical value");
+                    n_ms += value as f64;
+                    count += 1;
+                }
+            }
+        }
+        let key_metric = if count > 0 {
+            let avg = n_ms / (count as f64);
+            Some(avg)
+        } else {
+            None
+        };
+        log_key_metrics.push(key_metric);
+    }
+    //
+    // The total runtime
+    //
     let runtime = get_runtime(&file_out_str, &config.runtime_target);
     Ok(ResultSingleRun {
-        results,
-        fault_success,
+        prometheus_hist,
+        prometheus_fault_success,
+        log_key_metrics,
         runtime,
     })
 }
@@ -298,11 +342,11 @@ fn main() -> anyhow::Result<()> {
     //
     let mut var_results: Vec<ResultSingleRun> = Vec::new();
     for iter in 0..config.n_iter {
-        let var_result = execute_and_estimate_runtime(iter, &config)?;
+        let var_result = single_execution(iter, &config)?;
         println!("var_result={:?}", var_result);
         var_results.push(var_result);
     }
-    let n_key = config.target_keys_hist.len();
+    let n_key = config.target_prometheus_keys_hist.len();
     let n_job = config.l_job_name.len();
     for i_job in 0..n_job {
         println!("Metrics for job={}", config.l_job_name[i_job]);
@@ -312,7 +356,7 @@ fn main() -> anyhow::Result<()> {
             let mut count = 0 as f64;
             let mut vals = Vec::new();
             for iter in config.skip..config.n_iter {
-                match var_results[iter].results[i_job][i_key] {
+                match var_results[iter].prometheus_hist[i_job][i_key] {
                     None => {
                         n_miss += 1;
                     }
@@ -324,14 +368,14 @@ fn main() -> anyhow::Result<()> {
                 }
             }
             let avg = sum_val / count;
-            let key = &config.target_keys_hist[i_key];
+            let key = &config.target_prometheus_keys_hist[i_key];
             println!(
                 "  key={} n_miss={} avg={} vals={:?}",
                 key, n_miss, avg, vals
             );
         }
     }
-    let n_fs = config.target_fault_success.len();
+    let n_fs = config.target_prometheus_fault_success.len();
     for i_job in 0..n_job {
         println!(
             "Fault/Success metyrics for job={}",
@@ -343,7 +387,7 @@ fn main() -> anyhow::Result<()> {
             let mut count = 0 as f64;
             let mut vals = Vec::new();
             for iter in config.skip..config.n_iter {
-                match var_results[iter].fault_success[i_job][i_fs] {
+                match var_results[iter].prometheus_fault_success[i_job][i_fs] {
                     None => {
                         n_miss += 1;
                     }
@@ -354,8 +398,8 @@ fn main() -> anyhow::Result<()> {
                     }
                 }
             }
-            let key_f = &config.target_fault_success[i_fs].fault;
-            let key_s = &config.target_fault_success[i_fs].success;
+            let key_f = &config.target_prometheus_fault_success[i_fs].fault;
+            let key_s = &config.target_prometheus_fault_success[i_fs].success;
             if vals.len() > 0 {
                 let avg = sum_val / count;
                 println!(
