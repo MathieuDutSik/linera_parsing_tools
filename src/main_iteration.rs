@@ -4,11 +4,12 @@ extern crate serde_json;
 extern crate sysinfo;
 mod common;
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::process::Command;
 use sysinfo::{ProcessExt, System, SystemExt};
+use std::io::Write as _;
 
 use common::{get_float, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file};
 
@@ -38,6 +39,20 @@ struct Config {
     skip: usize,
     kill_after_work: Vec<String>,
     print_all_vals: bool,
+    file_metric_output: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SingleMetric {
+    group: String,
+    name: String,
+    value: f64,
+}
+
+
+#[derive(Serialize, Deserialize)]
+struct MultipleMetric {
+    metrics_result: Vec<SingleMetric>,
 }
 
 /*
@@ -338,6 +353,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
     println!("------ The initial runs have been done -------");
+    let mut metrics_result = Vec::new();
     //
     // Running the commands iteratively
     //
@@ -358,7 +374,7 @@ fn main() -> anyhow::Result<()> {
         for i_key in 0..n_key {
             let mut n_miss = 0;
             let mut sum_val = 0 as f64;
-            let mut count = 0 as f64;
+            let mut count = 0;
             let mut vals = Vec::new();
             for iter in config.skip..config.n_iter {
                 match var_results[iter].prometheus_hist[i_job][i_key] {
@@ -367,18 +383,28 @@ fn main() -> anyhow::Result<()> {
                     }
                     Some(val) => {
                         sum_val += val;
-                        count += 1.0;
+                        count += 1;
                         vals.push(val);
                     }
                 }
             }
-            let avg = sum_val / count;
             let key = &config.target_prometheus_keys_hist[i_key];
-            print!("  key={} n_miss={} avg={}", key, n_miss, avg);
-            if config.print_all_vals {
-                print!(" vals={:?}", vals);
+            if count > 0 {
+                let avg = sum_val / (count as f64);
+                print!("  key={} n_miss={} avg={}", key, n_miss, avg);
+                if config.print_all_vals {
+                    print!(" vals={:?}", vals);
+                }
+                println!();
+                let sm = SingleMetric {
+                    group: "prometheus_hist".to_string(),
+                    name: key.clone(),
+                    value: avg,
+                };
+                metrics_result.push(sm);
+            } else {
+                println!("  No metric for {}", key);
             }
-            println!();
         }
     }
     //
@@ -420,8 +446,14 @@ fn main() -> anyhow::Result<()> {
                     print!(" vals={:?}", vals);
                 }
                 println!();
+                let sm = SingleMetric {
+                    group: "prometheus_fault_success".to_string(),
+                    name: key_f.clone(),
+                    value: avg,
+                };
+                metrics_result.push(sm);
             } else {
-                println!("  No metric for{} / {}", key_f, key_s);
+                println!("  No metric for {} / {}", key_f, key_s);
             }
         }
     }
@@ -455,6 +487,12 @@ fn main() -> anyhow::Result<()> {
                 print!(" vals={:?}", vals);
             }
             println!();
+            let sm = SingleMetric {
+                group: "ci_log".to_string(),
+                name: key.clone(),
+                value: avg,
+            };
+            metrics_result.push(sm);
         } else {
             println!("The key={} did not match anything in the log n_miss={}", key, n_miss);
         }
@@ -478,6 +516,18 @@ fn main() -> anyhow::Result<()> {
         print!(" vals={:?}", vals)
     }
     println!();
+    let sm = SingleMetric {
+        group: "complete".to_string(),
+        name: config.runtime_target.clone(),
+        value: avg,
+    };
+    metrics_result.push(sm);
+    if let Some(file_metric_output) = config.file_metric_output.clone() {
+        let mm = MultipleMetric { metrics_result };
+        let json_string = serde_json::to_string(&mm)?;
+        let mut file = File::open(file_metric_output)?;
+        file.write_all(json_string.as_bytes())?;
+    }
     kill_after_work(&config);
     Ok(())
 }
