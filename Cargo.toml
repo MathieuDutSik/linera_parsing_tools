@@ -29,6 +29,10 @@ path = "src/main_iter_benchmarks.rs"
 name = "run_sequence_calls"
 path = "src/main_sequence_calls.rs"
 
+[[bin]]
+name = "slack_benchmarks_formatting"
+path = "src/main_slack_compilation.rs"
+
 [dependencies]
 anyhow = "1.0.80"
 sysinfo = "0.24.0"

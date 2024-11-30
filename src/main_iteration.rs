@@ -33,7 +33,7 @@ struct Config {
     target_prometheus_keys_hist: Vec<String>,
     target_log_keys: Vec<String>,
     target_prometheus_fault_success: Vec<SingleFaultSuccess>,
-    runtime_target: String,
+    runtime_targets: Vec<String>,
     l_job_name: Vec<String>,
     n_iter: usize,
     skip: usize,
@@ -47,6 +47,7 @@ struct SingleMetric {
     group: String,
     name: String,
     value: f64,
+    unit: String,
 }
 
 
@@ -63,7 +64,7 @@ struct ResultSingleRun {
     prometheus_hist: Vec<Vec<Option<f64>>>,
     prometheus_fault_success: Vec<Vec<Option<f64>>>,
     log_key_metrics: Vec<Option<f64>>,
-    runtime: f64,
+    runtimes: Vec<f64>,
 }
 
 fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String, String>> {
@@ -248,14 +249,18 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
         log_key_metrics.push(key_metric);
     }
     //
-    // The total runtime
+    // The runtime targets
     //
-    let runtime = get_runtime(&file_out_str, &config.runtime_target);
+    let mut runtimes = Vec::new();
+    for runtime_target in &config.runtime_targets {
+        let runtime = get_runtime(&file_out_str, runtime_target);
+        runtimes.push(runtime);
+    }
     Ok(ResultSingleRun {
         prometheus_hist,
         prometheus_fault_success,
         log_key_metrics,
-        runtime,
+        runtimes,
     })
 }
 
@@ -400,6 +405,7 @@ fn main() -> anyhow::Result<()> {
                     group: "prometheus_hist".to_string(),
                     name: key.clone(),
                     value: avg,
+                    unit: "ms".to_string(),
                 };
                 metrics_result.push(sm);
             } else {
@@ -450,6 +456,7 @@ fn main() -> anyhow::Result<()> {
                     group: "prometheus_fault_success".to_string(),
                     name: key_f.clone(),
                     value: avg,
+                    unit: "%".to_string(),
                 };
                 metrics_result.push(sm);
             } else {
@@ -491,6 +498,7 @@ fn main() -> anyhow::Result<()> {
                 group: "ci_log".to_string(),
                 name: key.clone(),
                 value: avg,
+                unit: "ms".to_string(),
             };
             metrics_result.push(sm);
         } else {
@@ -501,27 +509,34 @@ fn main() -> anyhow::Result<()> {
     // Printing the total runtime
     //
     println!("------------- The total runtime of the test ------------");
-    let mut sum_val = 0 as f64;
-    let mut count = 0 as f64;
-    let mut vals = Vec::new();
-    for iter in config.skip..config.n_iter {
-        let val = var_results[iter].runtime;
-        sum_val += val;
-        count += 1.0;
-        vals.push(val);
+    let n_rt = config.runtime_targets.len();
+    for i_rt in 0..n_rt {
+        let mut sum_val = 0 as f64;
+        let mut count = 0 as f64;
+        let mut vals = Vec::new();
+        for iter in config.skip..config.n_iter {
+            let val = var_results[iter].runtimes[i_rt];
+            sum_val += val;
+            count += 1.0;
+            vals.push(val);
+        }
+        let avg = sum_val / count;
+        print!("runtime, avg={}", avg);
+        if config.print_all_vals {
+            print!(" vals={:?}", vals)
+        }
+        println!();
+        let sm = SingleMetric {
+            group: "runtime_target".to_string(),
+            name: config.runtime_targets[i_rt].clone(),
+            value: avg,
+            unit: "ms".to_string(),
+        };
+        metrics_result.push(sm);
     }
-    let avg = sum_val / count;
-    print!("runtime, avg={}", avg);
-    if config.print_all_vals {
-        print!(" vals={:?}", vals)
-    }
-    println!();
-    let sm = SingleMetric {
-        group: "complete".to_string(),
-        name: config.runtime_target.clone(),
-        value: avg,
-    };
-    metrics_result.push(sm);
+    //
+    // Now saving the data
+    //
     if let Some(file_metric_output) = config.file_metric_output.clone() {
         let mm = MultipleMetric { metrics_result };
         let json_string = serde_json::to_string(&mm)?;
