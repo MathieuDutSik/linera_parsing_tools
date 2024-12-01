@@ -311,7 +311,8 @@ fn main() -> anyhow::Result<()> {
     println!("commands={:?}", config.commands);
     let mut childs = Vec::new();
     for (i_command, command) in config.commands.iter().enumerate() {
-        println!("i_command={} command={}", i_command, command);
+        println!("i_command={i_command}");
+        println!("   command={command}", command);
         let file_out = format!("OUT_COMM_{}.out", i_command);
         let file_out = File::create(file_out)?;
         let file_err = format!("OUT_COMM_{}.err", i_command);
@@ -356,7 +357,7 @@ fn main() -> anyhow::Result<()> {
                 .envs(&envs)
                 .args(comm_args)
                 .output()?;
-            println!("output={:?}", output);
+            println!("   output={:?}", output);
         }
     }
     println!("------ The initial runs have been done -------");
@@ -404,7 +405,7 @@ fn main() -> anyhow::Result<()> {
                 }
                 println!();
                 let sm = SingleMetric {
-                    group: "prometheus_hist".to_string(),
+                    group: "Prometheus histogram".to_string(),
                     name: key.clone(),
                     value: avg,
                     unit: "ms".to_string(),
@@ -454,10 +455,11 @@ fn main() -> anyhow::Result<()> {
                     print!(" vals={:?}", vals);
                 }
                 println!();
+                let avg_100 = avg * (100 as f64);
                 let sm = SingleMetric {
-                    group: "prometheus_fault_success".to_string(),
+                    group: "Prometheus fault/(fault + success)".to_string(),
                     name: key_f.clone(),
-                    value: avg,
+                    value: avg_100,
                     unit: "%".to_string(),
                 };
                 metrics_result.push(sm);
@@ -469,7 +471,7 @@ fn main() -> anyhow::Result<()> {
     //
     // Printing the log metrics
     //
-    println!("---------------- Log key metrics ----------------");
+    println!("---------------- CI Log key metrics ----------------");
     let n_log_keys = config.target_log_keys.len();
     for i_log_key in 0..n_log_keys {
         let key = config.target_log_keys[i_log_key].clone();
@@ -497,7 +499,7 @@ fn main() -> anyhow::Result<()> {
             }
             println!();
             let sm = SingleMetric {
-                group: "ci_log".to_string(),
+                group: "CI log".to_string(),
                 name: key.clone(),
                 value: avg,
                 unit: "ms".to_string(),
@@ -539,12 +541,19 @@ fn main() -> anyhow::Result<()> {
     //
     // Now saving the data
     //
+    println!("Statistics have been computed");
     if let Some(file_metric_output) = config.file_metric_output.clone() {
+        println!("file_metric_output={file_metric_output}");
         let mm = MultipleMetric { metrics_result };
+        println!("We have mm");
         let json_string = serde_json::to_string(&mm)?;
-        let mut file = File::open(file_metric_output)?;
+        println!("We have json_string");
+        let mut file = File::create(file_metric_output)?;
+        println!("We have file");
         file.write_all(json_string.as_bytes())?;
+        println!("Data has been written");
     }
+    println!("End of the save section");
     kill_after_work(&config);
     Ok(())
 }

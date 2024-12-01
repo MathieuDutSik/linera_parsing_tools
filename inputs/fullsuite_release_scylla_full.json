@@ -19,7 +19,7 @@
         "mkdir -p /tmp/WORK",
         "cargo build --release --features metrics,scylladb,remote-net",
         "./target/release/linera storage delete_all --storage scylladb:tcp:localhost:9042:table_a",
-        "./target/release/linera net up --policy-config devnet --storage scylladb:tcp:localhost:9042:table_a --path /tmp/WORK &",
+        "./target/release/linera net up --policy-config devnet --storage scylladb:tcp:localhost:9042:table_a --path /tmp/WORK --validators 4 --shards 4 &",
         "sleep 20",
         "./target/release/linera faucet --amount 1000 --port 8079 &",
         "sleep 20"
