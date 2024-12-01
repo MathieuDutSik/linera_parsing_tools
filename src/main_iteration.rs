@@ -312,7 +312,7 @@ fn main() -> anyhow::Result<()> {
     let mut childs = Vec::new();
     for (i_command, command) in config.commands.iter().enumerate() {
         println!("i_command={i_command}");
-        println!("   command={command}", command);
+        println!("   command={command}");
         let file_out = format!("OUT_COMM_{}.out", i_command);
         let file_out = File::create(file_out)?;
         let file_err = format!("OUT_COMM_{}.err", i_command);
