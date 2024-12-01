@@ -49,6 +49,25 @@
             "success": "num_cache_value_success"
         }
     ],
+    "target_log_keys": [
+        "Closing chain confirmed",
+        "Transfer confirmed",
+        "Application published and created",
+        "Application created",
+        "Opening a new chain confirmed",
+        "Chain linked to key",
+        "Key generated",
+        "Wallet initialized",
+        "Local balance obtained",
+        "Synchronized chain information",
+        "Balance obtained",
+        "Opening a new multi-owner chain confirmed",
+        "Data blob published",
+        "Data blob read",
+        "Processed incoming messages",
+        "Bytecode published",
+        "Operation confirmed"
+    ],
     "target_runtimes": [
         "test_wasm_end_to_end_amm::remote_net_grpc"
     ],
