@@ -1,0 +1,119 @@
+{
+    "environments": [
+        {
+            "command": "./target/release/linera faucet --amount 1000 --port 8079",
+            "environments": [
+                "export LINERA_WALLET=/tmp/WORK/wallet_0.json",
+                "export LINERA_STORAGE=rocksdb:/tmp/WORK/client_0.db"
+            ]
+        },
+        {
+            "command": "cargo test --release -p linera-service remote_net_grpc --features metrics,remote-net,scylladb",
+            "environments": [
+                "export LINERA_FAUCET_URL=http://localhost:8079"
+            ]
+        }
+    ],
+    "commands": [
+        "rm -rf /tmp/WORK",
+        "mkdir -p /tmp/WORK",
+        "cargo build --release --features metrics,scylladb,remote-net",
+        "./target/release/linera storage delete_all --storage scylladb:tcp:localhost:9042:table_a",
+        "./target/release/linera net up --policy-config devnet --storage scylladb:tcp:localhost:9042:table_a --path /tmp/WORK &",
+        "sleep 20",
+        "./target/release/linera faucet --amount 1000 --port 8079 &",
+        "sleep 20"
+    ],
+    "critical_command": "cargo test --release -p linera-service remote_net_grpc --features metrics,remote-net,scylladb",
+    "target_prometheus_keys_hist": [
+        "block_execution_latency",
+        "bytecode_decompression_latency",
+        "contract_instantiation_latency",
+        "journaling_scylladb_internal_clear_journal_latency",
+        "journaling_scylladb_internal_clone_with_root_key_latency",
+        "journaling_scylladb_internal_connect_latency",
+        "journaling_scylladb_internal_contains_key_latency",
+        "journaling_scylladb_internal_contains_keys_latency",
+        "journaling_scylladb_internal_find_key_values_by_prefix_latency",
+        "journaling_scylladb_internal_find_keys_by_prefix_latency",
+        "journaling_scylladb_internal_read_multi_value_bytes_latency",
+        "journaling_scylladb_internal_read_value_bytes_latency",
+        "journaling_scylladb_internal_write_batch_latency",
+        "key_value_store_view_get_latency",
+        "key_value_store_view_hash_latency",
+        "key_value_store_view_multi_get_latency",
+        "key_value_store_view_write_batch_latency",
+        "load_chain_latency",
+        "load_contract_latency",
+        "load_view_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_clear_journal_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_clone_with_root_key_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_connect_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_contains_key_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_contains_keys_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_find_key_values_by_prefix_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_find_keys_by_prefix_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_read_multi_value_bytes_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_read_value_bytes_latency",
+        "lru_caching_value_splitting_journaling_scylladb_internal_write_batch_latency",
+        "map_view_hash_runtime",
+        "message_execution_latency",
+        "operation_execution_latency",
+        "proxy_request_latency",
+        "reentrant_collection_view_hash_runtime",
+        "register_view_hash_runtime",
+        "server_request_latency",
+        "server_request_latency_per_request_type",
+        "set_view_hash_runtime",
+        "state_hash_computation_latency",
+        "value_splitting_journaling_scylladb_internal_clear_journal_latency",
+        "value_splitting_journaling_scylladb_internal_clone_with_root_key_latency",
+        "value_splitting_journaling_scylladb_internal_connect_latency",
+        "value_splitting_journaling_scylladb_internal_contains_key_latency",
+        "value_splitting_journaling_scylladb_internal_contains_keys_latency",
+        "value_splitting_journaling_scylladb_internal_find_key_values_by_prefix_latency",
+        "value_splitting_journaling_scylladb_internal_find_keys_by_prefix_latency",
+        "value_splitting_journaling_scylladb_internal_read_multi_value_bytes_latency",
+        "value_splitting_journaling_scylladb_internal_read_value_bytes_latency",
+        "value_splitting_journaling_scylladb_internal_write_batch_latency"
+    ],
+    "target_prometheus_fault_success": [
+        {
+            "fault": "num_cache_fault",
+            "success": "num_cache_success"
+        }
+    ],
+    "target_log_keys": [
+        "Closing chain confirmed",
+        "Transfer confirmed",
+        "Application published and created",
+        "Application created",
+        "Opening a new chain confirmed",
+        "Chain linked to key",
+        "Key generated",
+        "Wallet initialized",
+        "Local balance obtained",
+        "Synchronized chain information",
+        "Balance obtained",
+        "Opening a new multi-owner chain confirmed",
+        "Data blob published",
+        "Data blob read",
+        "Processed incoming messages",
+        "Bytecode published",
+        "Operation confirmed"
+    ],
+    "target_runtimes": [
+    ],
+    "l_job_name": [
+        "linera_test_11001"
+    ],
+    "n_iter": 10,
+    "skip": 1,
+    "print_all_vals": false,
+    "kill_after_work": [
+        "linera",
+        "linera-proxy",
+        "linera-server"
+    ],
+    "file_metric_output": "ALL_metrics_main"
+}

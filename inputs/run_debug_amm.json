@@ -17,15 +17,15 @@
     "commands": [
         "rm -rf /tmp/WORK",
         "mkdir -p /tmp/WORK",
-        "cargo build --features metrics,scylladb",
-        "./target/debug/linera-db delete_all --storage scylladb:tcp:localhost:9042:table_a",
-        "./target/debug/linera net up --policy-config devnet --storage-config-namespace scylladb:tcp:localhost:9042:table_a --path /tmp/WORK &",
+        "cargo build --features metrics,remote-net,scylladb",
+        "./target/debug/linera storage delete_all --storage scylladb:tcp:localhost:9042:table_a",
+        "./target/debug/linera net up --policy-config devnet --storage scylladb:tcp:localhost:9042:table_a --path /tmp/WORK &",
         "sleep 20",
         "./target/debug/linera faucet --amount 1000 --port 8079 &",
         "sleep 20"
     ],
     "critical_command": "cargo test test_wasm_end_to_end_amm::remote_net_grpc --features metrics,remote-net,scylladb",
-    "target_keys_hist": [
+    "target_prometheus_keys_hist": [
         "lru_caching_read_value_bytes",
         "lru_caching_read_multi_value_bytes",
         "lru_caching_contains_key",
@@ -35,7 +35,29 @@
         "lru_caching_write_batch",
         "lru_caching_clear_journal"
     ],
-    "runtime_target": "test_wasm_end_to_end_amm::remote_net_grpc",
+    "target_prometheus_fault_success": [],
+    "target_log_keys": [
+	"Closing chain confirmed",
+        "Transfer confirmed",
+        "Application published and created",
+	"Application created",
+	"Opening a new chain confirmed",
+	"Chain linked to key",
+	"Key generated",
+	"Wallet initialized",
+	"Local balance obtained",
+	"Synchronized chain information",
+	"Balance obtained",
+        "Opening a new multi-owner chain confirmed",
+        "Data blob published",
+        "Data blob read",
+	"Processed incoming messages",
+	"Bytecode published",
+	"Operation confirmed"
+    ],
+    "target_runtimes": [
+        "test_wasm_end_to_end_amm::remote_net_grpc"
+    ],
     "l_job_name": [
         "linera_test_11001"
     ],

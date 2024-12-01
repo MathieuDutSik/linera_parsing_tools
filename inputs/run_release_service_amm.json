@@ -17,9 +17,9 @@
     "commands": [
         "rm -rf /tmp/WORK",
         "mkdir -p /tmp/WORK",
-        "cargo build --release --features metrics,storage-service",
-        "./target/release/linera-db delete_all --storage service:tcp:localhost:1235:table_a",
-        "./target/release/linera net up --policy-config devnet --storage-config-namespace service:tcp:localhost:1235:table_a --path /tmp/WORK &",
+        "cargo build --release --features metrics,remote-net,storage-service",
+        "./target/release/linera storage delete_all --storage service:tcp:localhost:1235:table_a",
+        "./target/release/linera net up --policy-config devnet --storage service:tcp:localhost:1235:table_a --path /tmp/WORK &",
         "sleep 20",
         "./target/release/linera faucet --amount 1000 --port 8079 &",
         "sleep 20"
@@ -49,7 +49,9 @@
             "success": "num_cache_value_success"
         }
     ],
-    "runtime_target": "test_wasm_end_to_end_amm::remote_net_grpc",
+    "target_runtimes": [
+        "test_wasm_end_to_end_amm::remote_net_grpc"
+    ],
     "l_job_name": [
         "linera_test_11001"
     ],
