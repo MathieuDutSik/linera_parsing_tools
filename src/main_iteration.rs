@@ -213,7 +213,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
             if len_s > 0 && len_f > 0 {
                 let count_f = get_float(&data_f.entries[i_job][len_f - 1].1);
                 let count_s = get_float(&data_s.entries[i_job][len_s - 1].1);
-                let perf = count_s / (count_f + count_s);
+                let perf = count_f / (count_f + count_s);
                 prometheus_fault_success[i_job][i_fs] = Some(perf);
             }
         }

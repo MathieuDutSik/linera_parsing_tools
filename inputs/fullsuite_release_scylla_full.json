@@ -81,6 +81,10 @@
         {
             "fault": "num_cache_fault",
             "success": "num_cache_success"
+        },
+        {
+            "fault": "value_cache_miss",
+            "success": "value_cache_hit"
         }
     ],
     "target_log_keys": [
