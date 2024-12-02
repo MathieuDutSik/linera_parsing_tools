@@ -3,13 +3,12 @@ extern crate serde_json;
 mod common;
 use serde::{Serialize, Deserialize};
 
-use common::read_config_file;
+use common::{nice_float_str, read_config_file};
 
 #[derive(Deserialize)]
 struct Config {
     names: Vec<String>,
     log_files: Vec<String>,
-    _file_out: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -25,6 +24,16 @@ struct SingleMetric {
 struct MultipleMetric {
     metrics_result: Vec<SingleMetric>,
 }
+
+fn get_entry(value: f64, unit: &str) -> String {
+    if value > 1000.0 && unit == "ms" {
+        let value_red = value / (1000 as f64);
+        format!("{} s", nice_float_str(value_red))
+    } else {
+        format!("{} {}", nice_float_str(value), unit)
+    }
+}
+
 
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();
@@ -68,6 +77,9 @@ fn main() -> anyhow::Result<()> {
         let metric_name = l_metrics[0].metrics_result[i_metric].name.clone();
         let unit = l_metrics[0].metrics_result[i_metric].unit.clone();
         if group != current_group {
+            if i_metric != 0 {
+                println!();
+            }
             current_group = group.clone();
             println!("{group}:");
         }
@@ -92,14 +104,15 @@ fn main() -> anyhow::Result<()> {
             if i_run > 0 {
                 print!(", ");
             }
+            let str_out = get_entry(metric, &unit);
             if i_run == idx_best {
-                print!("*{metric}{unit}*({name})")
+                print!("*{str_out}*({name})")
             } else {
-                print!("{metric}{unit}({name})")
+                print!("{str_out}({name})")
             }
-            print!(": _{metric_name}_");
-            println!();
         }
+        print!(": _{metric_name}_");
+        println!();
     }
     Ok(())
 }
