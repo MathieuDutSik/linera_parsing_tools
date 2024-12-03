@@ -11,6 +11,7 @@ use std::process::Command;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
+use std::path::Path;
 
 pub fn get_float(input: &str) -> f64 {
     let input = input.trim_matches(|c| c == '"').to_string();
@@ -97,6 +98,24 @@ pub fn nice_float_str(value: f64) -> String {
         return format!("{:.2}", value);
     }
     format!("{:.5}", value)
+}
+
+pub fn make_file_available(file_name: &str) -> anyhow::Result<()> {
+    let mut iter = 0;
+    loop {
+        let first_free_file_attempt = if iter == 0 {
+            file_name.to_string()
+        } else {
+            format!("{}_V{}", file_name, iter)
+        };
+        if !Path::new(&first_free_file_attempt).exists() {
+            if file_name != &first_free_file_attempt {
+                std::fs::rename(file_name, &first_free_file_attempt)?;
+            }
+            return Ok(());
+        }
+        iter += 1;
+    }
 }
 
 pub fn read_config_file<Config: DeserializeOwned>(file_input: &str) -> anyhow::Result<Config> {

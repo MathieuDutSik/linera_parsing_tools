@@ -7,7 +7,7 @@ use serde::Deserialize;
 use std::fs::File;
 use std::process::Command;
 
-use common::read_config_file;
+use common::{read_config_file, make_file_available};
 
 #[derive(Deserialize)]
 struct Config {
@@ -47,10 +47,12 @@ fn main() -> anyhow::Result<()> {
     let mut n_fail = 0;
     for iter in 0..n_iter {
         println!("iter={} / {} n_fail={}", iter, n_iter, n_fail);
-        let file_out = format!("OUT_ITER_AND_FAIL_{}.out", iter);
-        let file_out = File::create(file_out)?;
-        let file_err = format!("OUT_ITER_AND_FAIL_{}.err", iter);
-        let file_err = File::create(file_err)?;
+        let file_out_str = format!("OUT_ITER_AND_FAIL_{}.out", iter);
+        let file_err_str = format!("OUT_ITER_AND_FAIL_{}.err", iter);
+        make_file_available(&file_out_str)?;
+        make_file_available(&file_err_str)?;
+        let file_out = File::create(file_out_str)?;
+        let file_err = File::create(file_err_str)?;
         let mut comm_args = Vec::new();
         for i in 1..l_str.len() {
             comm_args.push(l_str[i].clone());

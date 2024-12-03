@@ -6,7 +6,7 @@ mod common;
 use serde::Deserialize;
 use std::fs::File;
 use std::process::Command;
-use common::{read_config_file, read_lines_of_file, create_single_line, get_benchmark_average_metric_mus};
+use common::{read_config_file, read_lines_of_file, create_single_line, get_benchmark_average_metric_mus, make_file_available};
 
 #[derive(Deserialize)]
 struct Config {
@@ -25,8 +25,10 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
     for command in &config.commands {
         println!("i_command={} command={} iter={}", i_command, command, iter);
         let file_out_str = format!("OUT_ITER_BENCHMARK_{}_{}.out", iter, i_command);
-        let file_out = File::create(file_out_str.clone()).expect("A file to have been created");
         let file_err_str = format!("OUT_ITER_BENCHMARK_{}_{}.out", iter, i_command);
+        make_file_available(&file_out_str).expect("A file");
+        make_file_available(&file_err_str).expect("A file");
+        let file_out = File::create(file_out_str.clone()).expect("A file to have been created");
         let file_err = File::create(file_err_str).expect("A file to have been created");
         let l_str = command
             .split(' ')

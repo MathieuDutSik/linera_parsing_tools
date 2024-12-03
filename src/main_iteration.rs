@@ -11,7 +11,7 @@ use std::process::Command;
 use sysinfo::{ProcessExt, System, SystemExt};
 use std::io::Write as _;
 
-use common::{get_float, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file};
+use common::{get_float, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file, make_file_available};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -121,6 +121,8 @@ fn get_runtime(file_name: &String, target_runtime: &String) -> f64 {
 fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
     let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
     let file_err_str = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
+    make_file_available(&file_out_str)?;
+    make_file_available(&file_err_str)?;
     println!(
         "single_execution file_out_str={} file_err_str={}",
         file_out_str, file_err_str
@@ -306,6 +308,7 @@ fn main() -> anyhow::Result<()> {
         println!("running commands [FileI]");
         std::process::exit(1)
     }
+    let start_time: DateTime<Utc> = Utc::now();
     let file_input = &arguments[1];
     let config = read_config_file::<Config>(file_input)?;
     println!("commands={:?}", config.commands);
@@ -313,10 +316,12 @@ fn main() -> anyhow::Result<()> {
     for (i_command, command) in config.commands.iter().enumerate() {
         println!("i_command={i_command}");
         println!("   command={command}");
-        let file_out = format!("OUT_COMM_{}.out", i_command);
-        let file_out = File::create(file_out)?;
-        let file_err = format!("OUT_COMM_{}.err", i_command);
-        let file_err = File::create(file_err)?;
+        let file_out_str = format!("OUT_COMM_{}.out", i_command);
+        let file_err_str = format!("OUT_COMM_{}.err", i_command);
+        make_file_available(&file_out_str)?;
+        make_file_available(&file_err_str)?;
+        let file_out = File::create(file_out_str)?;
+        let file_err = File::create(file_err_str)?;
         let len_command = command.len();
         if command.ends_with(" &") {
             let red_command = command[..len_command - 2].to_string();
@@ -367,6 +372,7 @@ fn main() -> anyhow::Result<()> {
     //
     let mut var_results: Vec<ResultSingleRun> = Vec::new();
     for iter in 0..config.n_iter {
+        println!("--------------------- {}/{} --------------------", iter, config.n_iter);
         let var_result = single_execution(iter, &config)?;
         println!("var_result={:?}", var_result);
         var_results.push(var_result);
@@ -555,5 +561,9 @@ fn main() -> anyhow::Result<()> {
     }
     println!("End of the save section");
     kill_after_work(&config);
+    let end_time: DateTime<Utc> = Utc::now();
+    let time_delta = end_time.signed_duration_since(start_time);
+    let num_seconds = time_delta.num_seconds();
+    println!("num_seconds={}", num_seconds);
     Ok(())
 }
