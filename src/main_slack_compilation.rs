@@ -9,6 +9,7 @@ use common::{nice_float_str, read_config_file};
 struct Config {
     names: Vec<String>,
     log_files: Vec<String>,
+    choice_format: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,6 +35,15 @@ fn get_entry(value: f64, unit: &str) -> String {
     }
 }
 
+fn get_bold(choice_format: &str) -> String {
+    if choice_format == "GitHub" {
+        return "**".to_string();
+    }
+    if choice_format == "Slack" {
+        return "*".to_string();
+    }
+    panic!("choice_format can be GitHub or Slack");
+}
 
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();
@@ -68,6 +78,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
     let n_runs = config.log_files.len();
+    let bold_string = get_bold(&config.choice_format);
     //
     // The output
     //
@@ -106,12 +117,13 @@ fn main() -> anyhow::Result<()> {
             }
             let str_out = get_entry(metric, &unit);
             if i_run == idx_best {
-                print!("*{str_out}*({name})")
+                print!("{bold_string}{str_out}{bold_string}({name})")
             } else {
                 print!("{str_out}({name})")
             }
         }
-        print!(": _{metric_name}_");
+        let metric_name_red = metric_name.replace("_", " ");
+        print!(": {metric_name_red}");
         println!();
     }
     Ok(())
