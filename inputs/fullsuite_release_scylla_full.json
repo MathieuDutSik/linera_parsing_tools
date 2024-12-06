@@ -8,7 +8,7 @@
             ]
         },
         {
-            "command": "cargo test --release -p linera-service remote_net_grpc --features metrics,remote-net,scylladb",
+            "command": "cargo test --release -p linera-service existing_net_grpc --features metrics,existing-net,scylladb",
             "environments": [
                 "export LINERA_FAUCET_URL=http://localhost:8079"
             ]
@@ -17,14 +17,14 @@
     "commands": [
         "rm -rf /tmp/WORK",
         "mkdir -p /tmp/WORK",
-        "cargo build --release --features metrics,scylladb,remote-net",
+        "cargo build --release --features metrics,scylladb,existing-net",
         "./target/release/linera storage delete_all --storage scylladb:tcp:localhost:9042:table_a",
         "./target/release/linera net up --policy-config devnet --storage scylladb:tcp:localhost:9042:table_a --path /tmp/WORK --validators 4 --shards 4 &",
         "sleep 20",
         "./target/release/linera faucet --amount 1000 --port 8079 &",
         "sleep 20"
     ],
-    "critical_command": "cargo test --release -p linera-service remote_net_grpc --features metrics,remote-net,scylladb",
+    "critical_command": "cargo test --release -p linera-service existing_net_grpc --features metrics,existing-net,scylladb",
     "target_prometheus_keys_hist": [
         "block_execution_latency",
         "bytecode_decompression_latency",
