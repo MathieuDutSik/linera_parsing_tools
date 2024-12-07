@@ -1,6 +1,12 @@
 {
     "environments": [
         {
+            "command": "cargo build --release --features metrics,existing-net",
+            "environments": [
+                "export CARGO_BUILD_THREADS=4"
+            ]
+        },
+        {
             "command": "./target/release/linera faucet --amount 1000 --port 8079",
             "environments": [
                 "export LINERA_WALLET=/tmp/WORK/wallet_0.json",
@@ -10,6 +16,8 @@
         {
             "command": "cargo test --release -p linera-service existing_net_grpc --features metrics,existing-net",
             "environments": [
+                "export CARGO_TEST_THREADS=2",
+                "export CARGO_BUILD_THREADS=1",
                 "export LINERA_FAUCET_URL=http://localhost:8079"
             ]
         }
