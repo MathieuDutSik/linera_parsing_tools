@@ -16,8 +16,9 @@ struct Config {
 struct SingleMetric {
     group: String,
     name: String,
-    value: f64,
     unit: String,
+    value: f64,
+    count: f64,
 }
 
 
@@ -109,6 +110,12 @@ fn main() -> anyhow::Result<()> {
             }
         }
         print!("* ");
+        let mut sum_count = 0 as f64;
+        for i_run in 0..n_runs {
+            let count = l_metrics[i_run].metrics_result[i_metric].count;
+            sum_count += count;
+        }
+        let avg_count = sum_count / (n_runs as f64);
         for i_run in 0..n_runs {
             let name = config.names[i_run].clone();
             let metric = l_metrics[i_run].metrics_result[i_metric].value;
@@ -123,7 +130,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         let metric_name_red = metric_name.replace("_", " ");
-        print!(": {metric_name_red}");
+        print!(": {metric_name_red} ({avg_count} times)");
         println!();
     }
     Ok(())
