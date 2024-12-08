@@ -2,6 +2,7 @@ extern crate chrono;
 extern crate serde_json;
 mod common;
 use serde::{Serialize, Deserialize};
+use std::collections::BTreeSet;
 
 use common::{nice_float_str, read_config_file};
 
@@ -62,32 +63,55 @@ fn main() -> anyhow::Result<()> {
     }
     let file_input = &arguments[1];
     let config = read_config_file::<Config>(file_input)?;
+    let n_runs = config.log_files.len();
 
     let mut l_metrics = Vec::new();
-    let mut n_metric = 0;
+    let mut l_set = Vec::new();
     for log_file in &config.log_files {
         let result = read_config_file::<MultipleMetric>(log_file)?;
-        let len_metric = result.metrics_result.len();
+        let mut set = BTreeSet::new();
+        for entry in &result.metrics_result {
+            let key : (String, String) = (entry.group.clone(), entry.name.clone());
+            set.insert(key);
+        }
+        l_set.push(set);
         l_metrics.push(result);
-        if n_metric == 0 {
-            n_metric = len_metric;
-        } else {
-            if n_metric != len_metric {
-                println!("n_metric={n_metric} len_metric={len_metric} so it is inconsistent and we cannot run formard");
-                panic!("Please correct the input");
+    }
+    let mut set_int = BTreeSet::new();
+    for key in l_set[0].clone() {
+        let mut is_present = true;
+        for i_run in 1..n_runs {
+            if l_set[i_run].get(&key).is_none() {
+                is_present = false;
             }
         }
+        if is_present {
+            set_int.insert(key);
+        }
     }
-    let n_runs = config.log_files.len();
+    let n_metric = set_int.len();
+    let mut l_metrics_red = Vec::new();
+    for metrics in l_metrics {
+        let mut metrics_result = Vec::new();
+        for sm in metrics.metrics_result {
+            let key : (String, String) = (sm.group.clone(), sm.name.clone());
+            if set_int.get(&key).is_some() {
+                metrics_result.push(sm);
+            }
+        }
+        let mm = MultipleMetric { metrics_result };
+        l_metrics_red.push(mm);
+    }
+
     let bold_string = get_bold(&config.choice_format);
     //
     // The output
     //
     let mut current_group = "unset".to_string();
     for i_metric in 0..n_metric {
-        let group = l_metrics[0].metrics_result[i_metric].group.clone();
-        let metric_name = l_metrics[0].metrics_result[i_metric].name.clone();
-        let unit = l_metrics[0].metrics_result[i_metric].unit.clone();
+        let group = l_metrics_red[0].metrics_result[i_metric].group.clone();
+        let metric_name = l_metrics_red[0].metrics_result[i_metric].name.clone();
+        let unit = l_metrics_red[0].metrics_result[i_metric].unit.clone();
         if group != current_group {
             if i_metric != 0 {
                 println!();
@@ -98,7 +122,12 @@ fn main() -> anyhow::Result<()> {
         let mut idx_best = 0;
         let mut best_metric = 0 as f64;
         for i_run in 0..n_runs {
-            let metric = l_metrics[i_run].metrics_result[i_metric].value;
+            let metric = l_metrics_red[i_run].metrics_result[i_metric].value;
+            let group_b = l_metrics_red[i_run].metrics_result[i_metric].group.clone();
+            let metric_name_b = l_metrics_red[i_run].metrics_result[i_metric].name.clone();
+            if group != group_b || metric_name != metric_name_b {
+                panic!("The ordering of the entries in the file is not the same");
+            }
             if i_run == 0 {
                 idx_best = i_run;
                 best_metric = metric;
@@ -112,13 +141,13 @@ fn main() -> anyhow::Result<()> {
         print!("* ");
         let mut sum_count = 0 as f64;
         for i_run in 0..n_runs {
-            let count = l_metrics[i_run].metrics_result[i_metric].count;
+            let count = l_metrics_red[i_run].metrics_result[i_metric].count;
             sum_count += count;
         }
         let avg_count = sum_count / (n_runs as f64);
         for i_run in 0..n_runs {
             let name = config.names[i_run].clone();
-            let metric = l_metrics[i_run].metrics_result[i_metric].value;
+            let metric = l_metrics_red[i_run].metrics_result[i_metric].value;
             if i_run > 0 {
                 print!(", ");
             }
