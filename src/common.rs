@@ -136,7 +136,7 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         "http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s",
         key, start_time, end_time
     );
-    println!("request={}", request);
+//    println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
         .output()
@@ -174,6 +174,20 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         le,
     }
 }
+
+pub fn get_key_delta(data: &ReadData, i_job: usize) -> Option<f64> {
+    let len = data.entries[i_job].len();
+    if len > 0 {
+        let val_upp = get_float(&data.entries[i_job][len - 1].1);
+        let val_low = get_float(&data.entries[i_job][0].1);
+        let delta = val_upp - val_low;
+        Some(delta)
+    } else {
+        None
+    }
+}
+
+
 
 pub fn read_distribution_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> Vec<Vec<f64>> {
     let key_sum = format!("linera_{}_sum", key);

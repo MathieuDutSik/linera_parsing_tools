@@ -11,7 +11,7 @@ use std::process::Command;
 use sysinfo::{ProcessExt, System, SystemExt};
 use std::io::Write as _;
 
-use common::{get_float, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file, make_file_available};
+use common::{get_key_delta, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file, make_file_available};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -190,12 +190,11 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
             &end_time_str,
         );
         for i_job in 0..n_job {
-            let len = data_count.entries[i_job].len();
-            if len > 0 {
-                let count_tot = get_float(&data_count.entries[i_job][len - 1].1);
-                let value_tot = get_float(&data_sum.entries[i_job][len - 1].1);
-                let value = value_tot / count_tot;
-                let count = count_tot as usize;
+            let value_delta = get_key_delta(&data_sum, i_job);
+            if let Some(value_delta) = value_delta {
+                let count_delta = get_key_delta(&data_count, i_job).unwrap();
+                let value = value_delta / count_delta;
+                let count = count_delta as usize;
                 let pmc = PairMeasCount { value, count };
                 prometheus_hist[i_job][i_key] = Some(pmc);
             }
@@ -219,15 +218,15 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
         let data_f = read_key(&key_f, &config.l_job_name, &start_time_str, &end_time_str);
         let data_s = read_key(&key_s, &config.l_job_name, &start_time_str, &end_time_str);
         for i_job in 0..n_job {
-            let len_s = data_s.entries[i_job].len();
-            let len_f = data_f.entries[i_job].len();
-            if len_s > 0 && len_f > 0 {
-                let count_f = get_float(&data_f.entries[i_job][len_f - 1].1);
-                let count_s = get_float(&data_s.entries[i_job][len_s - 1].1);
-                let value = count_f / (count_f + count_s);
-                let count = (count_f + count_s) as usize;
-                let pmc = PairMeasCount { value, count };
-                prometheus_fault_success[i_job][i_fs] = Some(pmc);
+            let count_f = get_key_delta(&data_f, i_job);
+            let count_s = get_key_delta(&data_s, i_job);
+            if let Some(count_f) = count_f {
+                if let Some(count_s) = count_s {
+                    let value = count_f / (count_f + count_s);
+                    let count = (count_f + count_s) as usize;
+                    let pmc = PairMeasCount { value, count };
+                    prometheus_fault_success[i_job][i_fs] = Some(pmc);
+                }
             }
         }
     }
@@ -272,6 +271,13 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
         let pmc = get_runtime(&file_out_str, target_runtime);
         runtimes.push(pmc);
     }
+    //
+    // Terminating
+    //
+    let end_time: DateTime<Utc> = Utc::now();
+    let time_delta = end_time.signed_duration_since(start_time);
+    let num_seconds = time_delta.num_seconds();
+    println!("num_seconds={}", num_seconds);
     Ok(ResultSingleRun {
         prometheus_hist,
         prometheus_fault_success,
