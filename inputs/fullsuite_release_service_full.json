@@ -108,7 +108,22 @@
     "target_runtimes": [
     ],
     "l_job_name": [
-        "linera_test_11001"
+        "linera_test_11001",
+        "linera_test_11002",
+        "linera_test_11003",
+        "linera_test_11004",
+        "linera_test_11101",
+        "linera_test_11102",
+        "linera_test_11103",
+        "linera_test_11104",
+        "linera_test_11201",
+        "linera_test_11202",
+        "linera_test_11203",
+        "linera_test_11204",
+        "linera_test_11301",
+        "linera_test_11302",
+        "linera_test_11303",
+        "linera_test_11304"
     ],
     "n_iter": 10,
     "kill_after_work": [
