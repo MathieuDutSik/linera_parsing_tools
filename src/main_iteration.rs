@@ -36,10 +36,8 @@ struct Config {
     target_runtimes: Vec<String>,
     l_job_name: Vec<String>,
     n_iter: usize,
-    skip: usize,
     kill_after_work: Vec<String>,
-    print_all_vals: bool,
-    file_metric_output: Option<String>,
+    file_metric_output: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,8 +45,8 @@ struct SingleMetric {
     group: String,
     name: String,
     unit: String,
-    value: f64,
-    count: f64,
+    values: Vec<f64>,
+    counts: Vec<f64>,
 }
 
 
@@ -400,39 +398,22 @@ fn main() -> anyhow::Result<()> {
     for i_job in 0..n_job {
         println!("Metrics for job={}", config.l_job_name[i_job]);
         for i_key in 0..n_key {
-            let mut n_miss = 0;
-            let mut sum_val = 0 as f64;
-            let mut sum_count = 0;
-            let mut count = 0;
-            let mut vals = Vec::new();
-            for iter in config.skip..config.n_iter {
-                match &var_results[iter].prometheus_hist[i_job][i_key] {
-                    None => {
-                        n_miss += 1;
-                    }
-                    Some(pmc) => {
-                        sum_val += pmc.value;
-                        sum_count += pmc.count;
-                        count += 1;
-                        vals.push(pmc.value);
-                    }
+            let mut values = Vec::new();
+            let mut counts = Vec::new();
+            for iter in 0..config.n_iter {
+                if let Some(pmc) = &var_results[iter].prometheus_hist[i_job][i_key] {
+                    values.push(pmc.value);
+                    counts.push(pmc.count as f64);
                 }
             }
             let key = &config.target_prometheus_keys_hist[i_key];
-            if count > 0 {
-                let avg = sum_val / (count as f64);
-                let cnt = (sum_count as f64) / (count as f64);
-                print!("  key={} n_miss={} avg={} cnt={}", key, n_miss, avg, cnt);
-                if config.print_all_vals {
-                    print!(" vals={:?}", vals);
-                }
-                println!();
+            if !values.is_empty() {
                 let sm = SingleMetric {
                     group: "Prometheus histogram".to_string(),
                     name: key.clone(),
                     unit: "ms".to_string(),
-                    value: avg,
-                    count: cnt,
+                    values,
+                    counts,
                 };
                 metrics_result.push(sm);
             } else {
@@ -451,44 +432,24 @@ fn main() -> anyhow::Result<()> {
             config.l_job_name[i_job]
         );
         for i_fs in 0..n_fs {
-            let mut n_miss = 0;
-            let mut sum_val = 0 as f64;
-            let mut sum_count = 0;
-            let mut count = 0;
-            let mut vals = Vec::new();
-            for iter in config.skip..config.n_iter {
-                match &var_results[iter].prometheus_fault_success[i_job][i_fs] {
-                    None => {
-                        n_miss += 1;
-                    }
-                    Some(pmc) => {
-                        sum_val += pmc.value;
-                        sum_count += pmc.count;
-                        count += 1;
-                        vals.push(pmc.value);
-                    }
+            let mut values = Vec::new();
+            let mut counts = Vec::new();
+            for iter in 0..config.n_iter {
+                if let Some(pmc) = &var_results[iter].prometheus_fault_success[i_job][i_fs] {
+                    let value = pmc.value * (100 as f64);
+                    values.push(value);
+                    counts.push(pmc.count as f64);
                 }
             }
             let key_f = &config.target_prometheus_fault_success[i_fs].fault;
             let key_s = &config.target_prometheus_fault_success[i_fs].success;
-            if vals.len() > 0 {
-                let avg = sum_val / (count as f64);
-                let cnt = (sum_count as f64) / (count as f64);
-                print!(
-                    "  key={} / {} n_miss={} avg={} cnt={}",
-                    key_f, key_s, n_miss, avg, cnt
-                );
-                if config.print_all_vals {
-                    print!(" vals={:?}", vals);
-                }
-                println!();
-                let avg_100 = avg * (100 as f64);
+            if !values.is_empty() {
                 let sm = SingleMetric {
                     group: "Prometheus fault/(fault + success)".to_string(),
                     name: key_f.clone(),
                     unit: "%".to_string(),
-                    value: avg_100,
-                    count: cnt,
+                    values,
+                    counts,
                 };
                 metrics_result.push(sm);
             } else {
@@ -503,42 +464,25 @@ fn main() -> anyhow::Result<()> {
     let n_log_keys = config.target_log_keys.len();
     for i_log_key in 0..n_log_keys {
         let key = config.target_log_keys[i_log_key].clone();
-        let mut sum_val = 0 as f64;
-        let mut sum_count = 0;
-        let mut count = 0;
-        let mut n_miss = 0;
-        let mut vals = Vec::new();
-        for iter in config.skip..config.n_iter {
-            match &var_results[iter].log_key_metrics[i_log_key] {
-                None => {
-                    n_miss += 1;
-                }
-                Some(pmc) => {
-                    sum_val += pmc.value;
-                    sum_count += pmc.count;
-                    count += 1;
-                    vals.push(pmc.value);
-                }
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
+        for iter in 0..config.n_iter {
+            if let Some(pmc) = &var_results[iter].log_key_metrics[i_log_key] {
+                values.push(pmc.value);
+                counts.push(pmc.count as f64);
             }
         }
-        if count > 0 {
-            let avg = sum_val / (count as f64);
-            let cnt = (sum_count as f64) / (count as f64);
-            print!("key={key} avg={avg} cnt={cnt}");
-            if config.print_all_vals {
-                print!(" vals={:?}", vals);
-            }
-            println!();
+        if !values.is_empty() {
             let sm = SingleMetric {
                 group: "CI log".to_string(),
                 name: key.clone(),
                 unit: "ms".to_string(),
-                value: avg,
-                count: cnt,
+                values,
+                counts,
             };
             metrics_result.push(sm);
         } else {
-            println!("The key={} did not match anything in the log n_miss={}", key, n_miss);
+            println!("The key={} did not match anything in the log", key);
         }
     }
     //
@@ -547,49 +491,36 @@ fn main() -> anyhow::Result<()> {
     println!("------------- The runtime for specific targets ------------");
     let n_rt = config.target_runtimes.len();
     for i_rt in 0..n_rt {
-        let mut sum_val = 0 as f64;
-        let mut sum_count = 0;
-        let mut count = 0;
-        let mut vals = Vec::new();
-        for iter in config.skip..config.n_iter {
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
+        for iter in 0..config.n_iter {
             let pmc = &var_results[iter].runtimes[i_rt];
-            sum_val += pmc.value;
-            sum_count += pmc.count;
-            count += 1;
-            vals.push(pmc.value);
+            values.push(pmc.value);
+            counts.push(pmc.count as f64);
         }
-        let avg = sum_val / (count as f64);
-        let cnt = (sum_count as f64) / (count as f64);
-        print!("runtime, avg={avg} cnt={cnt}");
-        if config.print_all_vals {
-            print!(" vals={:?}", vals)
-        }
-        println!();
         let sm = SingleMetric {
             group: "runtime after".to_string(),
             name: config.target_runtimes[i_rt].clone(),
             unit: "ms".to_string(),
-            value: avg,
-            count: cnt,
+            values,
+            counts,
         };
         metrics_result.push(sm);
     }
     //
     // Now saving the data
     //
-    println!("Statistics have been computed");
-    if let Some(file_metric_output) = config.file_metric_output.clone() {
-        println!("file_metric_output={file_metric_output}");
-        let mm = MultipleMetric { metrics_result };
-        println!("We have mm");
-        let json_string = serde_json::to_string(&mm)?;
-        println!("We have json_string");
-        let mut file = File::create(file_metric_output)?;
-        println!("We have file");
-        file.write_all(json_string.as_bytes())?;
-        println!("Data has been written");
-    }
-    println!("End of the save section");
+    println!("Data has been computed");
+    let file_metric_output = config.file_metric_output.clone();
+    println!("file_metric_output={file_metric_output}");
+    let mm = MultipleMetric { metrics_result };
+    let json_string = serde_json::to_string(&mm)?;
+    let mut file = File::create(file_metric_output)?;
+    file.write_all(json_string.as_bytes())?;
+    println!("Data has been written");
+    //
+    // Kill processes
+    //
     kill_after_work(&config);
     let end_time: DateTime<Utc> = Utc::now();
     let time_delta = end_time.signed_duration_since(start_time);
