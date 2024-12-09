@@ -220,7 +220,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
         let data_s = read_key(&key_s, &config.l_job_name, &start_time_str, &end_time_str);
         for i_job in 0..n_job {
             let len_s = data_s.entries[i_job].len();
-            let len_f = data_s.entries[i_job].len();
+            let len_f = data_f.entries[i_job].len();
             if len_s > 0 && len_f > 0 {
                 let count_f = get_float(&data_f.entries[i_job][len_f - 1].1);
                 let count_s = get_float(&data_s.entries[i_job][len_s - 1].1);
@@ -399,9 +399,9 @@ fn main() -> anyhow::Result<()> {
         let mut values = Vec::new();
         let mut counts = Vec::new();
         let key = &config.target_prometheus_keys_hist[i_key];
+        println!("i_key={i_key}/{n_key} key={key}");
         for iter in 0..config.n_iter {
             for i_job in 0..n_job {
-                println!("Metrics for job={}", config.l_job_name[i_job]);
                 if let Some(pmc) = &var_results[iter].prometheus_hist[i_job][i_key] {
                     values.push(pmc.value);
                     counts.push(pmc.count as f64);
@@ -429,6 +429,7 @@ fn main() -> anyhow::Result<()> {
     for i_fs in 0..n_fs {
         let key_f = &config.target_prometheus_fault_success[i_fs].fault;
         let key_s = &config.target_prometheus_fault_success[i_fs].success;
+        println!("i_fs={i_fs}/{n_fs} key_f={key_f} key_s={key_s}");
         let mut values = Vec::new();
         let mut counts = Vec::new();
         for iter in 0..config.n_iter {
