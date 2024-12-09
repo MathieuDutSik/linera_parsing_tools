@@ -10,6 +10,9 @@ use common::{nice_float_str, read_config_file};
 struct Config {
     names: Vec<String>,
     log_files: Vec<String>,
+    data_dropping_strategy: String,
+    mean_strategy: String,
+    print_all_vals: bool,
     choice_format: String,
 }
 
@@ -18,9 +21,68 @@ struct SingleMetric {
     group: String,
     name: String,
     unit: String,
-    value: f64,
-    count: f64,
+    values: Vec<f64>,
+    counts: Vec<f64>,
 }
+
+
+fn compute_average(values: Vec<f64>) -> f64 {
+    let mut sum = 0 as f64;
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_average");
+    }
+    for value in values {
+        sum += value;
+    }
+    let avg = sum / (len as f64);
+    avg
+}
+
+
+fn compute_median(mut data: Vec<f64>) -> f64 {
+    let len = data.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_median");
+    }
+
+    data.sort_by(|a, b| a.partial_cmp(b).unwrap()); // Handle sorting
+    let mid = len / 2;
+
+    if len % 2 == 0 {
+        // Average of two middle values
+        (data[mid - 1] + data[mid]) / 2.0
+    } else {
+        // Middle value
+        data[mid]
+    }
+}
+
+fn compute_mean(values: Vec<f64>, method: &str) -> f64 {
+    if method == "average" {
+        return compute_average(values);
+    }
+    if method == "median" {
+        return compute_median(values);
+    }
+    panic!("method={method} but allowed methods are average / median");
+}
+
+
+fn data_dropping(values: Vec<f64>, method: &str) -> Vec<f64> {
+    if method == "half" {
+        let len = values.len();
+        let mid = len / 2;
+        return values[mid..].to_vec();
+    }
+    if let Some(remain) = method.strip_prefix("skip") {
+        let n_skip : usize = remain.parse::<usize>().expect("An integer");
+        return values[n_skip..].to_vec();
+    }
+    panic!("Unsopported data droppping method");
+}
+
+
 
 
 #[derive(Serialize, Deserialize)]
@@ -64,7 +126,9 @@ fn main() -> anyhow::Result<()> {
     let file_input = &arguments[1];
     let config = read_config_file::<Config>(file_input)?;
     let n_runs = config.log_files.len();
-
+    //
+    // Reading the metrics and identifiying the common ones.
+    //
     let mut l_metrics = Vec::new();
     let mut l_set = Vec::new();
     for log_file in &config.log_files {
@@ -102,7 +166,12 @@ fn main() -> anyhow::Result<()> {
         let mm = MultipleMetric { metrics_result };
         l_metrics_red.push(mm);
     }
-
+    //
+    // The method chosen
+    //
+    let data_dropping_strategy = config.data_dropping_strategy.clone();
+    let mean_strategy = config.mean_strategy.clone();
+    let print_all_vals = config.print_all_vals;
     let bold_string = get_bold(&config.choice_format);
     //
     // The output
@@ -121,8 +190,18 @@ fn main() -> anyhow::Result<()> {
         }
         let mut idx_best = 0;
         let mut best_metric = 0 as f64;
+        let mut all_counts = Vec::new();
+        let mut metrics = Vec::new();
         for i_run in 0..n_runs {
-            let metric = l_metrics_red[i_run].metrics_result[i_metric].value;
+            let values = l_metrics_red[i_run].metrics_result[i_metric].values.clone();
+            let values = data_dropping(values, &data_dropping_strategy);
+            let metric = compute_mean(values, &mean_strategy);
+            metrics.push(metric);
+            //
+            let counts = l_metrics_red[i_run].metrics_result[i_metric].counts.clone();
+            let counts = data_dropping(counts, &data_dropping_strategy);
+            all_counts.extend(counts);
+            //
             let group_b = l_metrics_red[i_run].metrics_result[i_metric].group.clone();
             let metric_name_b = l_metrics_red[i_run].metrics_result[i_metric].name.clone();
             if group != group_b || metric_name != metric_name_b {
@@ -139,15 +218,10 @@ fn main() -> anyhow::Result<()> {
             }
         }
         print!("* ");
-        let mut sum_count = 0 as f64;
-        for i_run in 0..n_runs {
-            let count = l_metrics_red[i_run].metrics_result[i_metric].count;
-            sum_count += count;
-        }
-        let avg_count = sum_count / (n_runs as f64);
+        let avg_count = compute_average(all_counts);
         for i_run in 0..n_runs {
             let name = config.names[i_run].clone();
-            let metric = l_metrics_red[i_run].metrics_result[i_metric].value;
+            let metric = metrics[i_run];
             if i_run > 0 {
                 print!(", ");
             }
@@ -161,6 +235,12 @@ fn main() -> anyhow::Result<()> {
         let metric_name_red = metric_name.replace("_", " ");
         print!(": {metric_name_red} ({avg_count} times)");
         println!();
+        if print_all_vals {
+            for i_run in 0..n_runs {
+                let name = config.names[i_run].clone();
+                println!("{name} : vals={:?}", l_metrics_red[i_run].metrics_result[i_metric].values);
+            }
+        }
     }
     Ok(())
 }
