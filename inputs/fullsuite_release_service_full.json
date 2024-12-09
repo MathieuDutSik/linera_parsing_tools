@@ -111,13 +111,11 @@
         "linera_test_11001"
     ],
     "n_iter": 10,
-    "skip": 1,
-    "print_all_vals": false,
     "kill_after_work": [
         "linera",
         "linera-proxy",
         "linera-server",
         "linera-storage-server"
     ],
-    "file_metric_output": "ALL_metrics_main"
+    "file_metric_output": "ALL_metrics"
 }

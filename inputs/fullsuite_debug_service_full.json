@@ -62,10 +62,10 @@
         "linera_test_11001"
     ],
     "n_iter": 1,
-    "skip": 0,
     "kill_after_work": [
         "linera",
         "linera-proxy",
         "linera-server"
-    ]
+    ],
+    "file_metric_output": "ALL_metrics"
 }

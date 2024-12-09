@@ -61,5 +61,6 @@
     "l_job_name": [
         "linera_test_11001"
     ],
-    "n_iter": 5
+    "n_iter": 5,
+    "file_metric_output": "ALL_metrics"
 }
