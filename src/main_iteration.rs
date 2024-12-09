@@ -395,30 +395,30 @@ fn main() -> anyhow::Result<()> {
     println!("-------------- Prometheus Keys histograms ---------------");
     let n_key = config.target_prometheus_keys_hist.len();
     let n_job = config.l_job_name.len();
-    for i_job in 0..n_job {
-        println!("Metrics for job={}", config.l_job_name[i_job]);
-        for i_key in 0..n_key {
-            let mut values = Vec::new();
-            let mut counts = Vec::new();
-            for iter in 0..config.n_iter {
+    for i_key in 0..n_key {
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
+        let key = &config.target_prometheus_keys_hist[i_key];
+        for iter in 0..config.n_iter {
+            for i_job in 0..n_job {
+                println!("Metrics for job={}", config.l_job_name[i_job]);
                 if let Some(pmc) = &var_results[iter].prometheus_hist[i_job][i_key] {
                     values.push(pmc.value);
                     counts.push(pmc.count as f64);
                 }
             }
-            let key = &config.target_prometheus_keys_hist[i_key];
-            if !values.is_empty() {
-                let sm = SingleMetric {
-                    group: "Prometheus histogram".to_string(),
-                    name: key.clone(),
-                    unit: "ms".to_string(),
-                    values,
-                    counts,
+        }
+        if !values.is_empty() {
+            let sm = SingleMetric {
+                group: "Prometheus histogram".to_string(),
+                name: key.clone(),
+                unit: "ms".to_string(),
+                values,
+                counts,
                 };
-                metrics_result.push(sm);
-            } else {
-                println!("  No metric for {}", key);
-            }
+            metrics_result.push(sm);
+        } else {
+            println!("  No metric for {}", key);
         }
     }
     //
@@ -426,35 +426,31 @@ fn main() -> anyhow::Result<()> {
     //
     println!("--------------- Prometheus fault/success statistics -------------");
     let n_fs = config.target_prometheus_fault_success.len();
-    for i_job in 0..n_job {
-        println!(
-            "Fault/Success metyrics for job={}",
-            config.l_job_name[i_job]
-        );
-        for i_fs in 0..n_fs {
-            let mut values = Vec::new();
-            let mut counts = Vec::new();
-            for iter in 0..config.n_iter {
+    for i_fs in 0..n_fs {
+        let key_f = &config.target_prometheus_fault_success[i_fs].fault;
+        let key_s = &config.target_prometheus_fault_success[i_fs].success;
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
+        for iter in 0..config.n_iter {
+            for i_job in 0..n_job {
                 if let Some(pmc) = &var_results[iter].prometheus_fault_success[i_job][i_fs] {
                     let value = pmc.value * (100 as f64);
                     values.push(value);
                     counts.push(pmc.count as f64);
                 }
             }
-            let key_f = &config.target_prometheus_fault_success[i_fs].fault;
-            let key_s = &config.target_prometheus_fault_success[i_fs].success;
-            if !values.is_empty() {
-                let sm = SingleMetric {
-                    group: "Prometheus fault/(fault + success)".to_string(),
-                    name: key_f.clone(),
-                    unit: "%".to_string(),
-                    values,
-                    counts,
-                };
-                metrics_result.push(sm);
-            } else {
-                println!("  No metric for {} / {}", key_f, key_s);
-            }
+        }
+        if !values.is_empty() {
+            let sm = SingleMetric {
+                group: "Prometheus fault/(fault + success)".to_string(),
+                name: key_f.clone(),
+                unit: "%".to_string(),
+                values,
+                counts,
+            };
+            metrics_result.push(sm);
+        } else {
+            println!("  No metric for {} / {}", key_f, key_s);
         }
     }
     //
