@@ -136,7 +136,7 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         "http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s",
         key, start_time, end_time
     );
-//    println!("request={}", request);
+    println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
         .output()

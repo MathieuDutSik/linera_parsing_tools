@@ -280,6 +280,41 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
     })
 }
 
+fn print_entry_class(arr: &Vec<Vec<Option<PairMeasCount>>>, name: &str) {
+    let mut n_some = 0;
+    let mut n_none = 0;
+    for line in arr {
+        for val in line {
+            if val.is_some() {
+                n_some += 1;
+            } else {
+                n_none += 1;
+            }
+        }
+    }
+    println!("{name}: n_some={n_some} n_none={n_none}");
+}
+
+
+fn print_info_single_run(rsr: &ResultSingleRun) {
+    //
+    print_entry_class(&rsr.prometheus_hist, "prometheus_hist");
+    print_entry_class(&rsr.prometheus_fault_success, "prometheus_fault_success");
+    //
+    let mut n_some = 0;
+    let mut n_none = 0;
+    for val in &rsr.log_key_metrics {
+        if val.is_some() {
+            n_some += 1;
+        } else {
+            n_none += 1;
+        }
+    }
+    println!("log_key_metrics: n_some={n_some} n_none={n_none}");
+    println!("runtimes: |{}|", rsr.runtimes.len());
+}
+
+
 fn kill_after_work(config: &Config) {
     let mut system = System::new_all();
 
@@ -288,19 +323,19 @@ fn kill_after_work(config: &Config) {
 
     // Iterate over all processes
     for (pid, process) in system.processes() {
-        let mut is_matching = false;
+        let mut the_name = None;
         for name in &config.kill_after_work {
             if process.name() == name {
-                is_matching = true;
+                the_name = Some(name);
             }
         }
-        if is_matching {
-            println!("Killing process: {} (PID: {})", process.name(), pid);
+        if let Some(name) = the_name {
+            println!("Killing process: {} (PID: {pid}) name={name}", process.name());
             // Send the `Signal::Kill` signal to the process
             if process.kill() {
-                println!("Successfully killed process: {}", pid);
+                println!("Successfully killed process: {pid}: {name}");
             } else {
-                eprintln!("Failed to kill process: {}", pid);
+                eprintln!("Failed to kill process: {pid} {name}");
             }
         }
     }
@@ -386,7 +421,7 @@ fn main() -> anyhow::Result<()> {
     for iter in 0..config.n_iter {
         println!("--------------------- {}/{} --------------------", iter, config.n_iter);
         let var_result = single_execution(iter, &config)?;
-        println!("var_result={:?}", var_result);
+        print_info_single_run(&var_result);
         var_results.push(var_result);
     }
     //
