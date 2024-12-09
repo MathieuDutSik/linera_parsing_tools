@@ -41,5 +41,5 @@ name = "run_sequence_calls"
 path = "src/main_sequence_calls.rs"
 
 [[bin]]
-name = "slack_benchmarks_formatting"
-path = "src/main_slack_compilation.rs"
+name = "data_perf_analysis"
+path = "src/main_data_perf_analysis.rs"
