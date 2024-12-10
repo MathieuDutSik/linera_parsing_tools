@@ -3,14 +3,18 @@
         {
             "command": "cargo build --release --features metrics,existing-net",
             "environments": [
-                "export CARGO_BUILD_THREADS=4"
+                "export CARGO_BUILD_THREADS=4",
+                "export RUST_LOG=linera=trace",
+                "export RUST_LOG_SPAN_EVENTS=close"
             ]
         },
         {
             "command": "./target/release/linera faucet --amount 1000 --port 8079",
             "environments": [
                 "export LINERA_WALLET=/tmp/WORK/wallet_0.json",
-                "export LINERA_STORAGE=rocksdb:/tmp/WORK/client_0.db"
+                "export LINERA_STORAGE=rocksdb:/tmp/WORK/client_0.db",
+                "export RUST_LOG=linera=trace",
+                "export RUST_LOG_SPAN_EVENTS=close"
             ]
         },
         {
@@ -18,6 +22,8 @@
             "environments": [
                 "export CARGO_TEST_THREADS=2",
                 "export CARGO_BUILD_THREADS=1",
+                "export RUST_LOG=linera=trace",
+                "export RUST_LOG_SPAN_EVENTS=close",
                 "export LINERA_FAUCET_URL=http://localhost:8079"
             ]
         }

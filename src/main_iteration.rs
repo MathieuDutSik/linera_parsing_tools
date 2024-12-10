@@ -11,7 +11,7 @@ use std::process::Command;
 use sysinfo::{ProcessExt, System, SystemExt};
 use std::io::Write as _;
 
-use common::{get_key_delta, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file, make_file_available};
+use common::{get_float, get_key_delta, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file, make_file_available};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -33,6 +33,7 @@ struct Config {
     target_prometheus_keys_hist: Vec<String>,
     target_log_keys: Vec<String>,
     target_prometheus_fault_success: Vec<SingleFaultSuccess>,
+    target_traces: Vec<String>,
     target_runtimes: Vec<String>,
     l_job_name: Vec<String>,
     n_iter: usize,
@@ -40,7 +41,7 @@ struct Config {
     file_metric_output: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct SingleMetric {
     group: String,
     name: String,
@@ -49,29 +50,19 @@ struct SingleMetric {
     counts: Vec<f64>,
 }
 
-
+/*
+Results by the number of metrics and then by the number of runs.
+ */
 #[derive(Serialize, Deserialize)]
 struct MultipleMetric {
-    metrics_result: Vec<SingleMetric>,
+    ll_metrics: Vec<Vec<SingleMetric>>,
 }
-
-
-#[derive(Debug)]
-struct PairMeasCount {
-    value: f64,
-    count: usize,
-}
-
 
 /*
 Results from the run, the entries are by the job_name, and then by the variable name.
 */
-#[derive(Debug)]
 struct ResultSingleRun {
-    prometheus_hist: Vec<Vec<Option<PairMeasCount>>>,
-    prometheus_fault_success: Vec<Vec<Option<PairMeasCount>>>,
-    log_key_metrics: Vec<Option<PairMeasCount>>,
-    runtimes: Vec<PairMeasCount>,
+    l_metrics: Vec<SingleMetric>,
 }
 
 fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String, String>> {
@@ -85,12 +76,16 @@ fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap
                 }
                 let entry = &entry[start_str.len()..];
                 let l_str = entry.split('=').map(|x| x.to_string()).collect::<Vec<_>>();
-                if l_str.len() != 2 {
+                if l_str.len() < 2 {
                     println!("l_str={:?}", l_str);
-                    anyhow::bail!("l_str should have length 2");
+                    anyhow::bail!("l_str should have length at least 2");
                 }
                 let key = l_str[0].to_string();
-                let value = l_str[1].to_string();
+                let mut value = l_str[1].to_string();
+                for i in 2..l_str.len() {
+                    value += "=";
+                    value += &l_str[i];
+                }
                 map.insert(key, value);
             }
         }
@@ -98,7 +93,7 @@ fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap
     Ok(map)
 }
 
-fn get_runtime(file_name: &String, target_runtime: &String) -> PairMeasCount {
+fn get_runtime(file_name: &String, target_runtime: &String) -> f64 {
     let lines = read_lines_of_file(file_name);
     for i_line in 0..lines.len() - 2 {
         let line = &lines[i_line];
@@ -116,7 +111,7 @@ fn get_runtime(file_name: &String, target_runtime: &String) -> PairMeasCount {
                 let estr = &l_str[1];
                 let estr = &estr[..estr.len() - 1];
                 let value: f64 = estr.parse().unwrap();
-                return PairMeasCount { value, count: 1};
+                return value;
             }
         }
     }
@@ -124,6 +119,50 @@ fn get_runtime(file_name: &String, target_runtime: &String) -> PairMeasCount {
     println!("ERR: target_runtime={target_runtime}");
     panic!("ERR: Failed to find an entry that matches ");
 }
+
+fn get_millisecond(line: &str) -> f64 {
+    if let Some(line_red) = line.strip_suffix("ms") {
+        let value = line_red.parse::<f64>().expect("a value");
+        return value;
+    }
+    if let Some(line_red) = line.strip_suffix("µs") {
+        let value = line_red.parse::<f64>().expect("a value");
+        let value = value / 1000.0;
+        return value;
+    }
+    println!("get_millisecond, line={line}");
+    panic!("Please correct");
+}
+
+
+fn get_busy_idle_entries(line: &str, keys: &Vec<String>) -> Option<(f64, f64)> {
+    let mut main_line = line.to_string();
+    for key in keys {
+        let l_splt = main_line.split(&*key).map(|x| x.to_string()).collect::<Vec<_>>();
+        if l_splt.len() > 2 {
+            println!("incorrect line={line}");
+            panic!("Please correct");
+        }
+        if l_splt.len() == 1 {
+            return None;
+        }
+        main_line = l_splt[1].clone();
+    }
+    let l_spl1 = main_line.split(" time.idle=").map(|x| x.to_string()).collect::<Vec<_>>();
+    if l_spl1.len() != 2 {
+        panic!("Failed to get the time_idle");
+    }
+    let idle_val = get_millisecond(&l_spl1[1]);
+    let l_spl2 = l_spl1[0].split(" time.busy=").map(|x| x.to_string()).collect::<Vec<_>>();
+    if l_spl1.len() != 2 {
+        panic!("Failed to get the time_busy");
+    }
+    let busy_val = get_millisecond(&l_spl2[1]);
+    Some((busy_val, idle_val))
+}
+
+
+
 
 fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
     let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
@@ -160,26 +199,18 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
     let end_time: DateTime<Utc> = Utc::now();
     let start_time_str = get_time_string_lower(start_time);
     let end_time_str = get_time_string_upper(end_time);
+    let lines = read_lines_of_file(&file_err_str);
     println!("start_time={} end_time={}", start_time, end_time);
     println!(
         "start_time_str={} end_time_str={}",
         start_time_str, end_time_str
     );
+    let n_job = config.l_job_name.len();
+    let mut l_metrics = Vec::new();
     //
     // The Prometheus histogram keys
     //
-    let mut prometheus_hist: Vec<Vec<Option<PairMeasCount>>> = Vec::new();
-    let n_job = config.l_job_name.len();
-    let n_keys = config.target_prometheus_keys_hist.len();
-    for _i_job in 0..n_job {
-        let mut v = Vec::new();
-        for _i_key in 0..n_keys {
-            v.push(None);
-        }
-        prometheus_hist.push(v);
-    }
-    for i_key in 0..n_keys {
-        let key = &config.target_prometheus_keys_hist[i_key];
+    for key in &config.target_prometheus_keys_hist {
         let key_sum = format!("linera_{}_sum", key);
         let key_count = format!("linera_{}_count", key);
         let data_sum = read_key(&key_sum, &config.l_job_name, &start_time_str, &end_time_str);
@@ -189,61 +220,77 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
             &start_time_str,
             &end_time_str,
         );
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
         for i_job in 0..n_job {
-            let value_delta = get_key_delta(&data_sum, i_job);
-            if let Some(value_delta) = value_delta {
-                let count_delta = get_key_delta(&data_count, i_job).unwrap();
-                let value = value_delta / count_delta;
+            let len = data_sum.entries[i_job].len();
+            for idx in 1..len {
+                let value_upp = get_float(&data_sum.entries[i_job][idx].1);
+                let value_low = get_float(&data_sum.entries[i_job][idx-1].1);
+                let count_upp = get_float(&data_count.entries[i_job][idx].1);
+                let count_low = get_float(&data_count.entries[i_job][idx-1].1);
+                let value_delta = value_upp - value_low;
+                let count_delta = count_upp - count_low;
                 let count = count_delta as usize;
                 if count > 0 {
-                    let pmc = PairMeasCount { value, count };
-                    prometheus_hist[i_job][i_key] = Some(pmc);
+                    let value = value_delta / count_delta;
+                    values.push(value);
+                    counts.push(count_delta);
                 }
             }
         }
+        let sm = SingleMetric {
+            group: "Prometheus histogram".to_string(),
+            name: key.clone(),
+            unit: "ms".to_string(),
+            values,
+            counts,
+        };
+        l_metrics.push(sm);
     }
     //
     // The Prometheus fault success variables
     //
-    let mut prometheus_fault_success: Vec<Vec<Option<PairMeasCount>>> = Vec::new();
-    let n_fs = config.target_prometheus_fault_success.len();
-    for _i_job in 0..n_job {
-        let mut v = Vec::new();
-        for _i_fs in 0..n_fs {
-            v.push(None);
-        }
-        prometheus_fault_success.push(v);
-    }
-    for i_fs in 0..n_fs {
-        let key_f = format!("linera_{}", config.target_prometheus_fault_success[i_fs].fault);
-        let key_s = format!("linera_{}", config.target_prometheus_fault_success[i_fs].success);
+    for key_fs in &config.target_prometheus_fault_success {
+        let key_f = format!("linera_{}", key_fs.fault);
+        let key_s = format!("linera_{}", key_fs.success);
         let data_f = read_key(&key_f, &config.l_job_name, &start_time_str, &end_time_str);
         let data_s = read_key(&key_s, &config.l_job_name, &start_time_str, &end_time_str);
+        // The length of the array data_f / data_s can be different, so only reliable way
+        // is to take all entries.
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
         for i_job in 0..n_job {
             let count_f = get_key_delta(&data_f, i_job);
             let count_s = get_key_delta(&data_s, i_job);
             if let Some(count_f) = count_f {
                 if let Some(count_s) = count_s {
-                    let value = count_f / (count_f + count_s);
-                    let count = (count_f + count_s) as usize;
-                    if count > 0 {
-                        let pmc = PairMeasCount { value, count };
-                        prometheus_fault_success[i_job][i_fs] = Some(pmc);
+                    let frac = count_f / (count_f + count_s);
+                    let count = count_f + count_s;
+                    let count_s = count as usize;
+                    if count_s > 0 {
+                        let value = frac * (100 as f64);
+                        values.push(value);
+                        counts.push(count);
                     }
                 }
             }
         }
+        let sm = SingleMetric {
+            group: "Prometheus fault/(fault + success)".to_string(),
+            name: key_f.clone(),
+            unit: "%".to_string(),
+            values,
+            counts,
+        };
+        l_metrics.push(sm);
     }
     //
     // The extraction of log metrics
     //
-    let mut log_key_metrics: Vec<Option<PairMeasCount>> = Vec::new();
-    let n_log_keys = config.target_log_keys.len();
-    let lines = read_lines_of_file(&file_err_str);
-    for i_log_key in 0..n_log_keys {
-        let key = &config.target_log_keys[i_log_key];
-        let mut n_ms = 0 as f64;
-        let mut count = 0;
+    for key in &config.target_log_keys {
+        let mut values = Vec::new();
+        let mut counts = Vec::new();
         for line in &lines {
             if line.ends_with("ms") {
                 let l_str = line.split(&*key).collect::<Vec<_>>();
@@ -253,83 +300,99 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
                         .filter(|c| c.is_numeric())
                         .collect::<String>();
                     let value = sec_sel.parse::<u64>().expect("a numerical value");
-                    n_ms += value as f64;
-                    count += 1;
+                    values.push(value as f64);
+                    counts.push(1 as f64);
                 }
             }
         }
-        let key_metric = if count > 0 {
-            let value = n_ms / (count as f64);
-            let pmc = PairMeasCount { value, count };
-            Some(pmc)
-        } else {
-            None
+        let sm = SingleMetric {
+            group: "CI log".to_string(),
+            name: key.clone(),
+            unit: "ms".to_string(),
+            values,
+            counts,
         };
-        log_key_metrics.push(key_metric);
+        l_metrics.push(sm);
+    }
+    //
+    // The trace targets
+    //
+    for trace_key in &config.target_traces {
+        let trace_key_busy = format!("{trace_key}_busy");
+        let trace_key_idle = format!("{trace_key}_idle");
+        let keys = trace_key.split('|').map(|x| x.to_string()).collect::<Vec<_>>();
+        let mut values_busy = Vec::new();
+        let mut counts_busy = Vec::new();
+        let mut values_idle = Vec::new();
+        let mut counts_idle = Vec::new();
+        for line in &lines {
+            if let Some((busy_val, idle_val)) = get_busy_idle_entries(line, &keys) {
+                values_busy.push(busy_val);
+                counts_busy.push(1 as f64);
+                values_idle.push(idle_val);
+                counts_idle.push(1 as f64);
+            }
+        }
+        let sm = SingleMetric {
+            group: "Trace clone".to_string(),
+            name: trace_key_busy,
+            unit: "ms".to_string(),
+            values: values_busy,
+            counts: counts_busy,
+        };
+        l_metrics.push(sm);
+        let sm = SingleMetric {
+            group: "Trace clone".to_string(),
+            name: trace_key_idle,
+            unit: "ms".to_string(),
+            values: values_idle,
+            counts: counts_idle,
+        };
+        l_metrics.push(sm);
     }
     //
     // The runtime targets
     //
-    let mut runtimes = Vec::new();
     for target_runtime in &config.target_runtimes {
-        let pmc = get_runtime(&file_out_str, target_runtime);
-        runtimes.push(pmc);
+        let value = get_runtime(&file_out_str, target_runtime);
+        let values = vec![value];
+        let counts = vec![1 as f64];
+        let sm = SingleMetric {
+            group: "runtime".to_string(),
+            name: target_runtime.to_string(),
+            unit: "ms".to_string(),
+            values,
+            counts,
+        };
+        l_metrics.push(sm);
     }
     //
-    // Terminating
+    // The total runtime
     //
-    let end_time: DateTime<Utc> = Utc::now();
-    let time_delta = end_time.signed_duration_since(start_time);
-    let num_seconds = time_delta.num_seconds();
-    println!("num_seconds={}", num_seconds);
-    let num_milisecond = time_delta.num_milliseconds();
-    let pmc = PairMeasCount { value: num_milisecond as f64, count: 1};
-    runtimes.push(pmc);
+    {
+        let end_time: DateTime<Utc> = Utc::now();
+        let time_delta = end_time.signed_duration_since(start_time);
+        let num_seconds = time_delta.num_seconds();
+        println!("num_seconds={}", num_seconds);
+        let num_milisecond = time_delta.num_milliseconds() as f64;
+        let values = vec![num_milisecond];
+        let counts = vec![1 as f64];
+        let sm = SingleMetric {
+            group: "runtime after".to_string(),
+            name: "total runtime".to_string(),
+            unit: "ms".to_string(),
+            values,
+            counts,
+        };
+        l_metrics.push(sm);
+    }
     //
     // Terminating
     //
     Ok(ResultSingleRun {
-        prometheus_hist,
-        prometheus_fault_success,
-        log_key_metrics,
-        runtimes,
+        l_metrics,
     })
 }
-
-fn print_entry_class(arr: &Vec<Vec<Option<PairMeasCount>>>, name: &str) {
-    let mut n_some = 0;
-    let mut n_none = 0;
-    for line in arr {
-        for val in line {
-            if val.is_some() {
-                n_some += 1;
-            } else {
-                n_none += 1;
-            }
-        }
-    }
-    println!("{name}: n_some={n_some} n_none={n_none}");
-}
-
-
-fn print_info_single_run(rsr: &ResultSingleRun) {
-    //
-    print_entry_class(&rsr.prometheus_hist, "prometheus_hist");
-    print_entry_class(&rsr.prometheus_fault_success, "prometheus_fault_success");
-    //
-    let mut n_some = 0;
-    let mut n_none = 0;
-    for val in &rsr.log_key_metrics {
-        if val.is_some() {
-            n_some += 1;
-        } else {
-            n_none += 1;
-        }
-    }
-    println!("log_key_metrics: n_some={n_some} n_none={n_none}");
-    println!("runtimes: |{}|", rsr.runtimes.len());
-}
-
 
 fn kill_after_work(config: &Config) {
     let mut system = System::new_all();
@@ -429,7 +492,6 @@ fn main() -> anyhow::Result<()> {
         }
     }
     println!("------ The initial runs have been done -------");
-    let mut metrics_result = Vec::new();
     //
     // Running the commands iteratively
     //
@@ -437,125 +499,28 @@ fn main() -> anyhow::Result<()> {
     for iter in 0..config.n_iter {
         println!("--------------------- {}/{} --------------------", iter, config.n_iter);
         let var_result = single_execution(iter, &config)?;
-        print_info_single_run(&var_result);
+        let mut missing_keys = Vec::new();
+        for rec in &var_result.l_metrics {
+            if rec.values.len() == 0 {
+                missing_keys.push(rec.name.clone());
+            }
+        }
+        println!("missing_keys={missing_keys:?}");
         var_results.push(var_result);
     }
     //
-    // Printing the prometheus keys of histogram
+    // Transposing the matrix
     //
-    println!("-------------- Prometheus Keys histograms ---------------");
-    let n_key = config.target_prometheus_keys_hist.len();
-    let n_job = config.l_job_name.len();
-    for i_key in 0..n_key {
-        let mut values = Vec::new();
-        let mut counts = Vec::new();
-        let key = &config.target_prometheus_keys_hist[i_key];
-        println!("i_key={i_key}/{n_key} key={key}");
-        for iter in 0..config.n_iter {
-            for i_job in 0..n_job {
-                if let Some(pmc) = &var_results[iter].prometheus_hist[i_job][i_key] {
-                    values.push(pmc.value);
-                    counts.push(pmc.count as f64);
-                }
-            }
-        }
-        if !values.is_empty() {
-            let sm = SingleMetric {
-                group: "Prometheus histogram".to_string(),
-                name: key.clone(),
-                unit: "ms".to_string(),
-                values,
-                counts,
-                };
-            metrics_result.push(sm);
-        } else {
-            println!("  No metric for {}", key);
-        }
+    println!("-------------- Transposing the matrix ---------------");
+    let n_keys = var_results[0].l_metrics.len();
+    let mut ll_metrics = Vec::new();
+    for _i_key in 0..n_keys {
+        ll_metrics.push(Vec::new());
     }
-    //
-    // Printing the fault/success statistics
-    //
-    println!("--------------- Prometheus fault/success statistics -------------");
-    let n_fs = config.target_prometheus_fault_success.len();
-    for i_fs in 0..n_fs {
-        let key_f = &config.target_prometheus_fault_success[i_fs].fault;
-        let key_s = &config.target_prometheus_fault_success[i_fs].success;
-        println!("i_fs={i_fs}/{n_fs} key_f={key_f} key_s={key_s}");
-        let mut values = Vec::new();
-        let mut counts = Vec::new();
-        for iter in 0..config.n_iter {
-            for i_job in 0..n_job {
-                if let Some(pmc) = &var_results[iter].prometheus_fault_success[i_job][i_fs] {
-                    let value = pmc.value * (100 as f64);
-                    values.push(value);
-                    counts.push(pmc.count as f64);
-                }
-            }
+    for var_result in var_results {
+        for i_key in 0..n_keys {
+            ll_metrics[i_key].push(var_result.l_metrics[i_key].clone());
         }
-        if !values.is_empty() {
-            let sm = SingleMetric {
-                group: "Prometheus fault/(fault + success)".to_string(),
-                name: key_f.clone(),
-                unit: "%".to_string(),
-                values,
-                counts,
-            };
-            metrics_result.push(sm);
-        } else {
-            println!("  No metric for {} / {}", key_f, key_s);
-        }
-    }
-    //
-    // Printing the log metrics
-    //
-    println!("---------------- CI Log key metrics ----------------");
-    let n_log_keys = config.target_log_keys.len();
-    for i_log_key in 0..n_log_keys {
-        let key = config.target_log_keys[i_log_key].clone();
-        let mut values = Vec::new();
-        let mut counts = Vec::new();
-        for iter in 0..config.n_iter {
-            if let Some(pmc) = &var_results[iter].log_key_metrics[i_log_key] {
-                values.push(pmc.value);
-                counts.push(pmc.count as f64);
-            }
-        }
-        if !values.is_empty() {
-            let sm = SingleMetric {
-                group: "CI log".to_string(),
-                name: key.clone(),
-                unit: "ms".to_string(),
-                values,
-                counts,
-            };
-            metrics_result.push(sm);
-        } else {
-            println!("The key={} did not match anything in the log", key);
-        }
-    }
-    //
-    // Printing the total runtime
-    //
-    println!("------------- The runtime for specific targets ------------");
-    let mut target_runtimes = config.target_runtimes.clone();
-    target_runtimes.push("total_runtime".to_string());
-    let n_rt = target_runtimes.len();
-    for i_rt in 0..n_rt {
-        let mut values = Vec::new();
-        let mut counts = Vec::new();
-        for iter in 0..config.n_iter {
-            let pmc = &var_results[iter].runtimes[i_rt];
-            values.push(pmc.value);
-            counts.push(pmc.count as f64);
-        }
-        let sm = SingleMetric {
-            group: "runtime after".to_string(),
-            name: target_runtimes[i_rt].clone(),
-            unit: "ms".to_string(),
-            values,
-            counts,
-        };
-        metrics_result.push(sm);
     }
     //
     // Now saving the data
@@ -563,7 +528,7 @@ fn main() -> anyhow::Result<()> {
     println!("Data has been computed");
     let file_metric_output = config.file_metric_output.clone();
     println!("file_metric_output={file_metric_output}");
-    let mm = MultipleMetric { metrics_result };
+    let mm = MultipleMetric { ll_metrics };
     let json_string = serde_json::to_string(&mm)?;
     let mut file = File::create(file_metric_output)?;
     file.write_all(json_string.as_bytes())?;
@@ -575,6 +540,6 @@ fn main() -> anyhow::Result<()> {
     let end_time: DateTime<Utc> = Utc::now();
     let time_delta = end_time.signed_duration_since(start_time);
     let num_seconds = time_delta.num_seconds();
-    println!("num_seconds={}", num_seconds);
+    println!("num_seconds={num_seconds}");
     Ok(())
 }
