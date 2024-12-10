@@ -25,13 +25,12 @@ struct SingleMetric {
     counts: Vec<f64>,
 }
 
-
 fn compute_average(values: Vec<f64>) -> f64 {
-    let mut sum = 0 as f64;
     let len = values.len();
     if len == 0 {
         panic!("We should have a non-zero number of values in compute_average");
     }
+    let mut sum = 0 as f64;
     for value in values {
         sum += value;
     }
@@ -39,6 +38,23 @@ fn compute_average(values: Vec<f64>) -> f64 {
     avg
 }
 
+fn compute_stddev(values: Vec<f64>) -> f64 {
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_average");
+    }
+    let mut sum_p1 = 0 as f64;
+    let mut sum_p2 = 0 as f64;
+    for value in values {
+        sum_p1 += value;
+        sum_p2 += value * value;
+    }
+    let avg_p1 = sum_p1 / (len as f64);
+    let avg_p2 = sum_p2 / (len as f64);
+    let variance = avg_p2 - avg_p1 * avg_p1;
+    let stddev = variance.sqrt();
+    stddev
+}
 
 fn compute_median(mut data: Vec<f64>) -> f64 {
     let len = data.len();
@@ -62,12 +78,14 @@ fn compute_mean(values: Vec<f64>, method: &str) -> f64 {
     if method == "average" {
         return compute_average(values);
     }
+    if method == "stddev" {
+        return compute_stddev(values);
+    }
     if method == "median" {
         return compute_median(values);
     }
     panic!("method={method} but allowed methods are average / median");
 }
-
 
 fn data_dropping(values: Vec<f64>, method: &str) -> Vec<f64> {
     if method == "half" {
@@ -81,9 +99,6 @@ fn data_dropping(values: Vec<f64>, method: &str) -> Vec<f64> {
     }
     panic!("Unsopported data droppping method");
 }
-
-
-
 
 #[derive(Serialize, Deserialize)]
 struct MultipleMetric {
@@ -138,6 +153,7 @@ fn main() -> anyhow::Result<()> {
             let key : (String, String) = (entry.group.clone(), entry.name.clone());
             set.insert(key);
         }
+        println!("log_file={log_file} |set|={}", set.len());
         l_set.push(set);
         l_metrics.push(result);
     }
@@ -153,6 +169,7 @@ fn main() -> anyhow::Result<()> {
             set_int.insert(key);
         }
     }
+    println!("|set_int|={}", set_int.len());
     let n_metric = set_int.len();
     let mut l_metrics_red = Vec::new();
     for metrics in l_metrics {
@@ -161,6 +178,8 @@ fn main() -> anyhow::Result<()> {
             let key : (String, String) = (sm.group.clone(), sm.name.clone());
             if set_int.get(&key).is_some() {
                 metrics_result.push(sm);
+            } else {
+                println!("Dropping {} : {}", sm.group, sm.name);
             }
         }
         let mm = MultipleMetric { metrics_result };
@@ -233,7 +252,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         let metric_name_red = metric_name.replace("_", " ");
-        print!(": {metric_name_red} ({avg_count} times)");
+        print!(": {metric_name_red} ({avg_count:.2} times)");
         println!();
         if print_all_vals {
             for i_run in 0..n_runs {
