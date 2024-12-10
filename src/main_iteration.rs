@@ -195,8 +195,10 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
                 let count_delta = get_key_delta(&data_count, i_job).unwrap();
                 let value = value_delta / count_delta;
                 let count = count_delta as usize;
-                let pmc = PairMeasCount { value, count };
-                prometheus_hist[i_job][i_key] = Some(pmc);
+                if count > 0 {
+                    let pmc = PairMeasCount { value, count };
+                    prometheus_hist[i_job][i_key] = Some(pmc);
+                }
             }
         }
     }
@@ -224,8 +226,10 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
                 if let Some(count_s) = count_s {
                     let value = count_f / (count_f + count_s);
                     let count = (count_f + count_s) as usize;
-                    let pmc = PairMeasCount { value, count };
-                    prometheus_fault_success[i_job][i_fs] = Some(pmc);
+                    if count > 0 {
+                        let pmc = PairMeasCount { value, count };
+                        prometheus_fault_success[i_job][i_fs] = Some(pmc);
+                    }
                 }
             }
         }
@@ -278,6 +282,12 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
     let time_delta = end_time.signed_duration_since(start_time);
     let num_seconds = time_delta.num_seconds();
     println!("num_seconds={}", num_seconds);
+    let num_milisecond = time_delta.num_milliseconds();
+    let pmc = PairMeasCount { value: num_milisecond as f64, count: 1};
+    runtimes.push(pmc);
+    //
+    // Terminating
+    //
     Ok(ResultSingleRun {
         prometheus_hist,
         prometheus_fault_success,
@@ -527,7 +537,9 @@ fn main() -> anyhow::Result<()> {
     // Printing the total runtime
     //
     println!("------------- The runtime for specific targets ------------");
-    let n_rt = config.target_runtimes.len();
+    let mut target_runtimes = config.target_runtimes.clone();
+    target_runtimes.push("total_runtime".to_string());
+    let n_rt = target_runtimes.len();
     for i_rt in 0..n_rt {
         let mut values = Vec::new();
         let mut counts = Vec::new();
@@ -538,7 +550,7 @@ fn main() -> anyhow::Result<()> {
         }
         let sm = SingleMetric {
             group: "runtime after".to_string(),
-            name: config.target_runtimes[i_rt].clone(),
+            name: target_runtimes[i_rt].clone(),
             unit: "ms".to_string(),
             values,
             counts,
