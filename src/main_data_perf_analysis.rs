@@ -16,13 +16,18 @@ struct Config {
     choice_format: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct SingleMetric {
     group: String,
     name: String,
     unit: String,
     values: Vec<f64>,
     counts: Vec<f64>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct MultipleMetric {
+    ll_metrics: Vec<Vec<SingleMetric>>,
 }
 
 fn compute_average(values: Vec<f64>) -> f64 {
@@ -38,6 +43,7 @@ fn compute_average(values: Vec<f64>) -> f64 {
     avg
 }
 
+/*
 fn compute_stddev(values: Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
@@ -84,25 +90,96 @@ fn compute_mean(values: Vec<f64>, method: &str) -> f64 {
     if method == "median" {
         return compute_median(values);
     }
-    panic!("method={method} but allowed methods are average / median");
+    panic!("method={method} but allowed methods are average / stddev / median");
+}
+*/
+
+
+
+
+fn compute_weighted_average(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_weighted_average");
+    }
+    let mut sum_val = 0 as f64;
+    let mut sum_cnt = 0 as f64;
+    for (value, count) in values.into_iter().zip(counts) {
+        sum_val += count * value;
+        sum_cnt += count;
+    }
+    let avg = sum_val / sum_cnt;
+    avg
 }
 
-fn data_dropping(values: Vec<f64>, method: &str) -> Vec<f64> {
+fn compute_weighted_stddev(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_weighted_stddev");
+    }
+    let mut sum_p0 = 0 as f64;
+    let mut sum_p1 = 0 as f64;
+    let mut sum_p2 = 0 as f64;
+    for (value, count) in values.into_iter().zip(counts) {
+        sum_p0 += count;
+        sum_p1 += count * value;
+        sum_p2 += count * value * value;
+    }
+    let avg_p1 = sum_p1 / sum_p0;
+    let avg_p2 = sum_p2 / sum_p0;
+    let variance = avg_p2 - avg_p1 * avg_p1;
+    let stddev = variance.sqrt();
+    stddev
+}
+
+fn compute_weighted_median(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_weighted_median");
+    }
+    let mut data = Vec::new();
+    let mut sum_weight = 0 as f64;
+    for (value, count) in values.into_iter().zip(counts) {
+        sum_weight += count;
+        data.push((value, count));
+    }
+    data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap()); // Handle sorting
+    let target_weight = sum_weight / 2.0;
+    let mut pos = 0 as f64;
+    for idx in 0..data.len() {
+        pos += data[idx].1;
+        if pos > target_weight {
+            return *data[idx].0;
+        }
+    }
+    panic!("Failed to find index");
+}
+
+fn compute_weighted_mean(values: &Vec<f64>, counts: &Vec<f64>, method: &str) -> f64 {
+    if method == "average" {
+        return compute_weighted_average(values, counts);
+    }
+    if method == "stddev" {
+        return compute_weighted_stddev(values, counts);
+    }
+    if method == "median" {
+        return compute_weighted_median(values, counts);
+    }
+    panic!("method={method} but allowed methods are average / stddev / median");
+}
+
+
+
+fn first_used_index(n_iter: usize, method: &str) -> usize {
     if method == "half" {
-        let len = values.len();
-        let mid = len / 2;
-        return values[mid..].to_vec();
+        let mid = n_iter / 2;
+        return mid;
     }
     if let Some(remain) = method.strip_prefix("skip") {
         let n_skip : usize = remain.parse::<usize>().expect("An integer");
-        return values[n_skip..].to_vec();
+        return n_skip;
     }
-    panic!("Unsopported data droppping method");
-}
-
-#[derive(Serialize, Deserialize)]
-struct MultipleMetric {
-    metrics_result: Vec<SingleMetric>,
+    panic!("Unsupported data droppping method");
 }
 
 fn get_entry(value: f64, unit: &str) -> String {
@@ -149,8 +226,8 @@ fn main() -> anyhow::Result<()> {
     for log_file in &config.log_files {
         let result = read_config_file::<MultipleMetric>(log_file)?;
         let mut set = BTreeSet::new();
-        for entry in &result.metrics_result {
-            let key : (String, String) = (entry.group.clone(), entry.name.clone());
+        for entry in &result.ll_metrics {
+            let key : (String, String) = (entry[0].group.clone(), entry[0].name.clone());
             set.insert(key);
         }
         println!("log_file={log_file} |set|={}", set.len());
@@ -173,16 +250,16 @@ fn main() -> anyhow::Result<()> {
     let n_metric = set_int.len();
     let mut l_metrics_red = Vec::new();
     for metrics in l_metrics {
-        let mut metrics_result = Vec::new();
-        for sm in metrics.metrics_result {
-            let key : (String, String) = (sm.group.clone(), sm.name.clone());
+        let mut ll_metrics = Vec::new();
+        for sm in metrics.ll_metrics {
+            let key : (String, String) = (sm[0].group.clone(), sm[0].name.clone());
             if set_int.get(&key).is_some() {
-                metrics_result.push(sm);
+                ll_metrics.push(sm);
             } else {
-                println!("Dropping {} : {}", sm.group, sm.name);
+                println!("Dropping {} : {}", key.0, key.1);
             }
         }
-        let mm = MultipleMetric { metrics_result };
+        let mm = MultipleMetric { ll_metrics };
         l_metrics_red.push(mm);
     }
     //
@@ -192,14 +269,16 @@ fn main() -> anyhow::Result<()> {
     let mean_strategy = config.mean_strategy.clone();
     let print_all_vals = config.print_all_vals;
     let bold_string = get_bold(&config.choice_format);
+    let n_iter = l_metrics_red[0].ll_metrics[0].len();
+    let first_index = first_used_index(n_iter, &data_dropping_strategy);
     //
     // The output
     //
     let mut current_group = "unset".to_string();
     for i_metric in 0..n_metric {
-        let group = l_metrics_red[0].metrics_result[i_metric].group.clone();
-        let metric_name = l_metrics_red[0].metrics_result[i_metric].name.clone();
-        let unit = l_metrics_red[0].metrics_result[i_metric].unit.clone();
+        let group = l_metrics_red[0].ll_metrics[i_metric][0].group.clone();
+        let metric_name = l_metrics_red[0].ll_metrics[i_metric][0].name.clone();
+        let unit = l_metrics_red[0].ll_metrics[i_metric][0].unit.clone();
         if group != current_group {
             if i_metric != 0 {
                 println!();
@@ -211,21 +290,29 @@ fn main() -> anyhow::Result<()> {
         let mut best_metric = 0 as f64;
         let mut all_counts = Vec::new();
         let mut metrics = Vec::new();
+        let mut l_values = Vec::new();
         for i_run in 0..n_runs {
-            let values = l_metrics_red[i_run].metrics_result[i_metric].values.clone();
-            let values = data_dropping(values, &data_dropping_strategy);
-            let metric = compute_mean(values, &mean_strategy);
-            metrics.push(metric);
-            //
-            let counts = l_metrics_red[i_run].metrics_result[i_metric].counts.clone();
-            let counts = data_dropping(counts, &data_dropping_strategy);
-            all_counts.extend(counts);
-            //
-            let group_b = l_metrics_red[i_run].metrics_result[i_metric].group.clone();
-            let metric_name_b = l_metrics_red[i_run].metrics_result[i_metric].name.clone();
+            let v = l_metrics_red[i_run].ll_metrics[i_metric].clone();
+            let group_b = v[0].group.clone();
+            let metric_name_b = v[0].name.clone();
             if group != group_b || metric_name != metric_name_b {
                 panic!("The ordering of the entries in the file is not the same");
             }
+            let mut values = Vec::new();
+            let mut counts = Vec::new();
+            for vec in &v[first_index..] {
+                values.extend(vec.values.clone());
+                let mut sum_count = 0 as f64;
+                for ent in &vec.counts {
+                    sum_count += ent;
+                }
+                all_counts.push(sum_count);
+                counts.extend(vec.counts.clone());
+            }
+            let metric = compute_weighted_mean(&values, &counts, &mean_strategy);
+            l_values.push(values);
+            metrics.push(metric);
+            //
             if i_run == 0 {
                 idx_best = i_run;
                 best_metric = metric;
@@ -257,7 +344,7 @@ fn main() -> anyhow::Result<()> {
         if print_all_vals {
             for i_run in 0..n_runs {
                 let name = config.names[i_run].clone();
-                println!("{name} : vals={:?}", l_metrics_red[i_run].metrics_result[i_metric].values);
+                println!("{name} : vals={:?}", l_values[i_run]);
             }
         }
     }

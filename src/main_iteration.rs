@@ -58,13 +58,6 @@ struct MultipleMetric {
     ll_metrics: Vec<Vec<SingleMetric>>,
 }
 
-/*
-Results from the run, the entries are by the job_name, and then by the variable name.
-*/
-struct ResultSingleRun {
-    l_metrics: Vec<SingleMetric>,
-}
-
 fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String, String>> {
     let mut map = HashMap::new();
     let start_str = "export ";
@@ -164,7 +157,7 @@ fn get_busy_idle_entries(line: &str, keys: &Vec<String>) -> Option<(f64, f64)> {
 
 
 
-fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingleRun> {
+fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMetric>> {
     let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
     let file_err_str = format!("OUT_RUN_{}_{}.err", iter, config.n_iter);
     make_file_available(&file_out_str)?;
@@ -389,9 +382,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<ResultSingle
     //
     // Terminating
     //
-    Ok(ResultSingleRun {
-        l_metrics,
-    })
+    Ok(l_metrics)
 }
 
 fn kill_after_work(config: &Config) {
@@ -495,31 +486,41 @@ fn main() -> anyhow::Result<()> {
     //
     // Running the commands iteratively
     //
-    let mut var_results: Vec<ResultSingleRun> = Vec::new();
+    let mut ll_metrics_v1 = Vec::new();
     for iter in 0..config.n_iter {
         println!("--------------------- {}/{} --------------------", iter, config.n_iter);
-        let var_result = single_execution(iter, &config)?;
+        let l_metrics = single_execution(iter, &config)?;
         let mut missing_keys = Vec::new();
-        for rec in &var_result.l_metrics {
+        for rec in &l_metrics {
             if rec.values.len() == 0 {
                 missing_keys.push(rec.name.clone());
             }
         }
         println!("missing_keys={missing_keys:?}");
-        var_results.push(var_result);
+        ll_metrics_v1.push(l_metrics);
     }
     //
-    // Transposing the matrix
+    // Transposing the matrix and keeping the non-zero entries
     //
     println!("-------------- Transposing the matrix ---------------");
-    let n_keys = var_results[0].l_metrics.len();
-    let mut ll_metrics = Vec::new();
+    let n_keys = ll_metrics_v1[0].len();
+    let mut ll_metrics_v2 = Vec::new();
     for _i_key in 0..n_keys {
-        ll_metrics.push(Vec::new());
+        ll_metrics_v2.push(Vec::new());
     }
-    for var_result in var_results {
+    for var_r in ll_metrics_v1 {
         for i_key in 0..n_keys {
-            ll_metrics[i_key].push(var_result.l_metrics[i_key].clone());
+            ll_metrics_v2[i_key].push(var_r[i_key].clone());
+        }
+    }
+    let mut ll_metrics_v3 = Vec::new();
+    for l_metrics in ll_metrics_v2 {
+        let mut tot_len = 0;
+        for metrics in &l_metrics {
+            tot_len += metrics.values.len();
+        }
+        if tot_len > 0 {
+            ll_metrics_v3.push(l_metrics);
         }
     }
     //
@@ -528,7 +529,7 @@ fn main() -> anyhow::Result<()> {
     println!("Data has been computed");
     let file_metric_output = config.file_metric_output.clone();
     println!("file_metric_output={file_metric_output}");
-    let mm = MultipleMetric { ll_metrics };
+    let mm = MultipleMetric { ll_metrics: ll_metrics_v3 };
     let json_string = serde_json::to_string(&mm)?;
     let mut file = File::create(file_metric_output)?;
     file.write_all(json_string.as_bytes())?;
