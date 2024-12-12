@@ -128,11 +128,14 @@ fn parse_float(line_red: &str) -> f64 {
 
 
 fn get_millisecond(line: &str) -> f64 {
-    if let Some(line_red) = line.strip_suffix("ms") {
-        return parse_float(line_red);
+    if let Some(line_red) = line.strip_suffix("ns") {
+        return parse_float(line_red) / 1000000.0;
     }
     if let Some(line_red) = line.strip_suffix("µs") {
         return parse_float(line_red) / 1000.0;
+    }
+    if let Some(line_red) = line.strip_suffix("ms") {
+        return parse_float(line_red);
     }
     if let Some(line_red) = line.strip_suffix("s") {
         return parse_float(line_red) * 1000.0;
