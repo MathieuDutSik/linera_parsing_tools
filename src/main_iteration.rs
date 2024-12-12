@@ -143,12 +143,12 @@ fn get_busy_idle_entries(line: &str, keys: &Vec<String>) -> Option<(f64, f64)> {
     }
     let l_spl1 = main_line.split(" time.idle=").map(|x| x.to_string()).collect::<Vec<_>>();
     if l_spl1.len() != 2 {
-        panic!("Failed to get the time_idle");
+        return None;
     }
     let idle_val = get_millisecond(&l_spl1[1]);
     let l_spl2 = l_spl1[0].split(" time.busy=").map(|x| x.to_string()).collect::<Vec<_>>();
     if l_spl1.len() != 2 {
-        panic!("Failed to get the time_busy");
+        return None;
     }
     let busy_val = get_millisecond(&l_spl2[1]);
     Some((busy_val, idle_val))

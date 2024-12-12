@@ -94,7 +94,33 @@ fn compute_mean(values: Vec<f64>, method: &str) -> f64 {
 }
 */
 
+fn compute_lowest(values: &Vec<f64>) -> f64 {
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_lowest");
+    }
+    let mut min_val = values[0];
+    for val in values {
+        if *val < min_val {
+            min_val = *val;
+        }
+    }
+    min_val
+}
 
+fn compute_highest(values: &Vec<f64>) -> f64 {
+    let len = values.len();
+    if len == 0 {
+        panic!("We should have a non-zero number of values in compute_lowest");
+    }
+    let mut max_val = values[0];
+    for val in values {
+        if *val > max_val {
+            max_val = *val;
+        }
+    }
+    max_val
+}
 
 
 fn compute_weighted_average(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
@@ -164,6 +190,12 @@ fn compute_weighted_mean(values: &Vec<f64>, counts: &Vec<f64>, method: &str) -> 
     }
     if method == "median" {
         return compute_weighted_median(values, counts);
+    }
+    if method == "lowest" {
+        return compute_lowest(values);
+    }
+    if method == "highest" {
+        return compute_highest(values);
     }
     panic!("method={method} but allowed methods are average / stddev / median");
 }

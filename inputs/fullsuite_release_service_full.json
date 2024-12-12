@@ -111,6 +111,23 @@
         "Bytecode published",
         "Operation confirmed"
     ],
+    "target_traces" : [
+        "linera::main:handle_chain_info_query|Client node for",
+        "linera::main:handle_chain_info_query|Temporary client for fetching the parent chain",
+        "linera::main: linera: close",
+        "handle_validated_certificate|Client node",
+        "linera::main:handle_block_proposal",
+        "handle_confirmed_certificate|Client node",
+        "handle_confirmed_certificate|Temporary client for fetching the parent chain",
+        "linera::main:node_service|handle_chain_info_query",
+        "linera::main:node_service|handle_block_proposal",
+        "linera::main:node_service|handle_cross_chain_request",
+        "handle_cross_chain_request|Client node",
+        "handle_cross_chain_request|Temporary client for fetching the parent chain",
+        "handle_chain_info_query|Client node",
+        "handle_chain_info_query",
+        "handle_block_proposal"
+    ],
     "target_runtimes": [
     ],
     "l_job_name": [
