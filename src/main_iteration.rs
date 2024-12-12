@@ -113,15 +113,29 @@ fn get_runtime(file_name: &String, target_runtime: &String) -> f64 {
     panic!("ERR: Failed to find an entry that matches ");
 }
 
+fn parse_float(line_red: &str) -> f64 {
+    match line_red.parse::<f64>() {
+        Err(err) => {
+            println!("err={err:?}");
+            println!("line_red={line_red}");
+            panic!("Wrong string, please correct");
+        },
+        Ok(value) => {
+            value
+        },
+    }
+}
+
+
 fn get_millisecond(line: &str) -> f64 {
     if let Some(line_red) = line.strip_suffix("ms") {
-        let value = line_red.parse::<f64>().expect("a value");
-        return value;
+        return parse_float(line_red);
     }
     if let Some(line_red) = line.strip_suffix("µs") {
-        let value = line_red.parse::<f64>().expect("a value");
-        let value = value / 1000.0;
-        return value;
+        return parse_float(line_red) / 1000.0;
+    }
+    if let Some(line_red) = line.strip_suffix("s") {
+        return parse_float(line_red) * 1000.0;
     }
     println!("get_millisecond, line={line}");
     panic!("Please correct");

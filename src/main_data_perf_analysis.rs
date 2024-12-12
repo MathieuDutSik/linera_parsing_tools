@@ -138,6 +138,14 @@ fn compute_weighted_average(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
     avg
 }
 
+fn compute_sum_runtimes(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+    let mut sum_val = 0 as f64;
+    for (value, count) in values.into_iter().zip(counts) {
+        sum_val += count * value;
+    }
+    sum_val
+}
+
 fn compute_weighted_stddev(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
@@ -196,6 +204,9 @@ fn compute_weighted_mean(values: &Vec<f64>, counts: &Vec<f64>, method: &str) -> 
     }
     if method == "highest" {
         return compute_highest(values);
+    }
+    if method == "sum_runtimes" {
+        return compute_sum_runtimes(values, counts);
     }
     panic!("method={method} but allowed methods are average / stddev / median");
 }
