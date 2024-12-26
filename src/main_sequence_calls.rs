@@ -3,11 +3,11 @@ extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
 mod common;
-use serde::Deserialize;
-use std::path::Path;
-use std::fs::File;
-use std::process::Command;
 use common::read_config_file;
+use serde::Deserialize;
+use std::fs::File;
+use std::path::Path;
+use std::process::Command;
 
 #[derive(Deserialize)]
 struct Config {
@@ -41,7 +41,10 @@ fn main() -> anyhow::Result<()> {
         let command = config.commands[i_command].clone();
         let stdout = config.stdouts[i_command].clone();
         let stderr = config.stderrs[i_command].clone();
-        println!("i_command={} directory={} command={} stdout={} stderr={}", i_command, directory, command, stdout, stderr);
+        println!(
+            "i_command={} directory={} command={} stdout={} stderr={}",
+            i_command, directory, command, stdout, stderr
+        );
         //
         let file_out = File::create(stdout)?;
         let file_err = File::create(stderr)?;

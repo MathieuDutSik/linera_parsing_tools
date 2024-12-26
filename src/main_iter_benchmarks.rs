@@ -3,10 +3,13 @@ extern crate serde;
 extern crate serde_json;
 extern crate sysinfo;
 mod common;
+use common::{
+    create_single_line, get_benchmark_average_metric_mus, make_file_available, read_config_file,
+    read_lines_of_file,
+};
 use serde::Deserialize;
 use std::fs::File;
 use std::process::Command;
-use common::{read_config_file, read_lines_of_file, create_single_line, get_benchmark_average_metric_mus, make_file_available};
 
 #[derive(Deserialize)]
 struct Config {
@@ -15,8 +18,6 @@ struct Config {
     n_skip: usize,
     targets: Vec<String>,
 }
-
-
 
 fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
     let n_target = config.targets.len();
@@ -32,7 +33,7 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
         let file_err = File::create(file_err_str).expect("A file to have been created");
         let l_str = command
             .split(' ')
-	    .map(|x| x.to_string())
+            .map(|x| x.to_string())
             .collect::<Vec<_>>();
         let raw_command = &l_str[0];
         let mut comm_args = Vec::new();
@@ -50,7 +51,10 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
         let single_line = create_single_line(lines);
         for i_target in 0..n_target {
             let result = get_benchmark_average_metric_mus(&single_line, &config.targets[i_target]);
-            println!("i_target={} target={} result={:?}", i_target, &config.targets[i_target], result);
+            println!(
+                "i_target={} target={} result={:?}",
+                i_target, &config.targets[i_target], result
+            );
             if let Some(metric_mus) = result {
                 vec[i_target] = Some(metric_mus);
             }
@@ -67,7 +71,6 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
     }
     vec_ret
 }
-
 
 fn main() -> anyhow::Result<()> {
     let args = std::env::args();

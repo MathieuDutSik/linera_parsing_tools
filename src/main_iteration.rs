@@ -4,14 +4,14 @@ extern crate serde_json;
 extern crate sysinfo;
 mod common;
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use common::{
+    get_float, get_key_delta, get_time_string_lower, get_time_string_upper, make_file_available,
+    read_config_file, read_key, read_lines_of_file,
+};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File;
-use std::process::Command;
+use std::{fs::File, io::Write as _, process::Command, time::Instant};
 use sysinfo::{ProcessExt, System, SystemExt};
-use std::io::Write as _;
-
-use common::{get_float, get_key_delta, get_time_string_lower, get_time_string_upper, read_config_file, read_key, read_lines_of_file, make_file_available};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -119,13 +119,10 @@ fn parse_float(line_red: &str) -> f64 {
             println!("err={err:?}");
             println!("line_red={line_red}");
             panic!("Wrong string, please correct");
-        },
-        Ok(value) => {
-            value
-        },
+        }
+        Ok(value) => value,
     }
 }
-
 
 fn get_millisecond(line: &str) -> f64 {
     if let Some(line_red) = line.strip_suffix("ns") {
@@ -144,11 +141,13 @@ fn get_millisecond(line: &str) -> f64 {
     panic!("Please correct");
 }
 
-
 fn get_busy_idle_entries(line: &str, keys: &Vec<String>) -> Option<(f64, f64)> {
     let mut main_line = line.to_string();
     for key in keys {
-        let l_splt = main_line.split(&*key).map(|x| x.to_string()).collect::<Vec<_>>();
+        let l_splt = main_line
+            .split(&*key)
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>();
         if l_splt.len() > 2 {
             println!("incorrect line={line}");
             panic!("Please correct");
@@ -158,21 +157,24 @@ fn get_busy_idle_entries(line: &str, keys: &Vec<String>) -> Option<(f64, f64)> {
         }
         main_line = l_splt[1].clone();
     }
-    let l_spl1 = main_line.split(" time.idle=").map(|x| x.to_string()).collect::<Vec<_>>();
+    let l_spl1 = main_line
+        .split(" time.idle=")
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
     if l_spl1.len() != 2 {
         return None;
     }
     let idle_val = get_millisecond(&l_spl1[1]);
-    let l_spl2 = l_spl1[0].split(" time.busy=").map(|x| x.to_string()).collect::<Vec<_>>();
+    let l_spl2 = l_spl1[0]
+        .split(" time.busy=")
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
     if l_spl1.len() != 2 {
         return None;
     }
     let busy_val = get_millisecond(&l_spl2[1]);
     Some((busy_val, idle_val))
 }
-
-
-
 
 fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMetric>> {
     let file_out_str = format!("OUT_RUN_{}_{}.out", iter, config.n_iter);
@@ -236,9 +238,9 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
             let len = data_sum.entries[i_job].len();
             for idx in 1..len {
                 let value_upp = get_float(&data_sum.entries[i_job][idx].1);
-                let value_low = get_float(&data_sum.entries[i_job][idx-1].1);
+                let value_low = get_float(&data_sum.entries[i_job][idx - 1].1);
                 let count_upp = get_float(&data_count.entries[i_job][idx].1);
-                let count_low = get_float(&data_count.entries[i_job][idx-1].1);
+                let count_low = get_float(&data_count.entries[i_job][idx - 1].1);
                 let value_delta = value_upp - value_low;
                 let count_delta = count_upp - count_low;
                 let count = count_delta as usize;
@@ -306,7 +308,8 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
                 let l_str = line.split(&*key).collect::<Vec<_>>();
                 if l_str.len() == 2 {
                     let sec_ent = l_str[1];
-                    let sec_sel = sec_ent.chars()
+                    let sec_sel = sec_ent
+                        .chars()
                         .filter(|c| c.is_numeric())
                         .collect::<String>();
                     let value = sec_sel.parse::<u64>().expect("a numerical value");
@@ -330,7 +333,10 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
     for trace_key in &config.target_traces {
         let trace_key_busy = format!("{trace_key}_busy");
         let trace_key_idle = format!("{trace_key}_idle");
-        let keys = trace_key.split('|').map(|x| x.to_string()).collect::<Vec<_>>();
+        let keys = trace_key
+            .split('|')
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>();
         let mut values_busy = Vec::new();
         let mut counts_busy = Vec::new();
         let mut values_idle = Vec::new();
@@ -344,7 +350,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
             }
         }
         let sm = SingleMetric {
-            group: "Trace clone".to_string(),
+            group: "Trace close".to_string(),
             name: trace_key_busy,
             unit: "ms".to_string(),
             values: values_busy,
@@ -352,7 +358,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
         };
         l_metrics.push(sm);
         let sm = SingleMetric {
-            group: "Trace clone".to_string(),
+            group: "Trace close".to_string(),
             name: trace_key_idle,
             unit: "ms".to_string(),
             values: values_idle,
@@ -417,7 +423,10 @@ fn kill_after_work(config: &Config) {
             }
         }
         if let Some(name) = the_name {
-            println!("Killing process: {} (PID: {pid}) name={name}", process.name());
+            println!(
+                "Killing process: {} (PID: {pid}) name={name}",
+                process.name()
+            );
             // Send the `Signal::Kill` signal to the process
             if process.kill() {
                 println!("Successfully killed process: {pid}: {name}");
@@ -490,13 +499,18 @@ fn main() -> anyhow::Result<()> {
             for i in 1..l_str.len() {
                 comm_args.push(l_str[i].clone());
             }
+            let time_start = Instant::now();
             let output = Command::new(command)
                 .stdout::<File>(file_out)
                 .stderr::<File>(file_err)
                 .envs(&envs)
                 .args(comm_args)
                 .output()?;
-            println!("   output={:?}", output);
+            println!(
+                "   output={:?} in {} ms",
+                output,
+                time_start.elapsed().as_millis()
+            );
         }
     }
     println!("------ The initial runs have been done -------");
@@ -505,7 +519,10 @@ fn main() -> anyhow::Result<()> {
     //
     let mut ll_metrics_v1 = Vec::new();
     for iter in 0..config.n_iter {
-        println!("--------------------- {}/{} --------------------", iter, config.n_iter);
+        println!(
+            "--------------------- {}/{} --------------------",
+            iter, config.n_iter
+        );
         let l_metrics = single_execution(iter, &config)?;
         let mut missing_keys = Vec::new();
         for rec in &l_metrics {
@@ -546,7 +563,9 @@ fn main() -> anyhow::Result<()> {
     println!("Data has been computed");
     let file_metric_output = config.file_metric_output.clone();
     println!("file_metric_output={file_metric_output}");
-    let mm = MultipleMetric { ll_metrics: ll_metrics_v3 };
+    let mm = MultipleMetric {
+        ll_metrics: ll_metrics_v3,
+    };
     let json_string = serde_json::to_string(&mm)?;
     let mut file = File::create(file_metric_output)?;
     file.write_all(json_string.as_bytes())?;

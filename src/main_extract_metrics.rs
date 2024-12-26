@@ -2,12 +2,15 @@ extern crate chrono;
 extern crate serde_json;
 extern crate yaml_rust;
 mod common;
-use chrono::{DateTime, Utc, Local};
+use chrono::{DateTime, Local, Utc};
 use std::io::Read;
 use std::time::Duration;
 use yaml_rust::YamlLoader;
 
-use common::{get_float, get_duration_as_string, get_unit_of_key, nice_float_str, get_request_string, read_key, read_linera_keys};
+use common::{
+    get_duration_as_string, get_float, get_request_string, get_unit_of_key, nice_float_str,
+    read_key, read_linera_keys,
+};
 
 fn main() {
     let args = std::env::args();
@@ -177,7 +180,10 @@ fn main() {
                         let unix_time = data_sum.entries[i][idx - 1].0;
                         let delta_time = unix_time - data_sum.min_time;
                         let avg = delta_sum / delta_count;
-                        alljobs_str += &format!("delta_time={} avg={} count={}\n", delta_time, avg, delta_count);
+                        alljobs_str += &format!(
+                            "delta_time={} avg={} count={}\n",
+                            delta_time, avg, delta_count
+                        );
                     }
                 }
                 let count_tot = get_float(&data_count.entries[i][len_sum - 1].1);
@@ -197,7 +203,7 @@ fn main() {
                 let unit = get_unit_of_key(&key);
                 let str_avg = nice_float_str(avg_glob);
                 println!("key: {} avg_glob={}{}", key, str_avg, unit);
-//                println!("key: {} count_glob={} avg_glob={}", key, count_glob, avg_glob);
+                //                println!("key: {} count_glob={} avg_glob={}", key, count_glob, avg_glob);
             }
             n_hist_key_eff += 1;
         }
@@ -208,11 +214,18 @@ fn main() {
     );
     let curr_time_local: DateTime<Local> = Local::now();
     let curr_time_utc: DateTime<Utc> = Utc::now();
-    println!("curr_time_local={} curr_time_utc={}", curr_time_local, curr_time_utc);
+    println!(
+        "curr_time_local={} curr_time_utc={}",
+        curr_time_local, curr_time_utc
+    );
     let duration_curr_start = start_time_local.signed_duration_since(curr_time_local);
-    println!("|curr - start| = {}", get_duration_as_string(duration_curr_start));
+    println!(
+        "|curr - start| = {}",
+        get_duration_as_string(duration_curr_start)
+    );
     let duration_curr_end = end_time_local.signed_duration_since(curr_time_local);
-    println!("|curr - end|   = {}", get_duration_as_string(duration_curr_end));
-
-
+    println!(
+        "|curr - end|   = {}",
+        get_duration_as_string(duration_curr_end)
+    );
 }

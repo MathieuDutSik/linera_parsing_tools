@@ -4,14 +4,14 @@ extern crate chrono;
 extern crate serde_json;
 extern crate yaml_rust;
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
-use serde_json::Value;
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use std::collections::BTreeMap;
-use std::process::Command;
 use std::fs::File;
-use std::io::BufReader;
 use std::io::BufRead;
+use std::io::BufReader;
 use std::path::Path;
+use std::process::Command;
 
 pub fn get_float(input: &str) -> f64 {
     let input = input.trim_matches(|c| c == '"').to_string();
@@ -65,11 +65,7 @@ pub fn get_request_string(datetime: DateTime<Utc>) -> String {
 
 pub fn get_duration_as_string(duration: Duration) -> String {
     let num_sec = duration.num_seconds();
-    let num_sec = if num_sec > 0 {
-        num_sec
-    } else {
-        -num_sec
-    };
+    let num_sec = if num_sec > 0 { num_sec } else { -num_sec };
     let n_day = num_sec / 86400;
     let n_hour = (num_sec % 86400) / 3600;
     let n_min = (num_sec % 3600) / 60;
@@ -81,7 +77,6 @@ pub fn get_duration_as_string(duration: Duration) -> String {
     }
     format!("n_min={}", n_min)
 }
-
 
 pub fn get_unit_of_key(key: &str) -> String {
     if key.ends_with("latency") {
@@ -136,7 +131,7 @@ pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time:
         "http://localhost:9090/api/v1/query_range?query={}&start={}&end={}&step=1s",
         key, start_time, end_time
     );
-//    println!("request={}", request);
+    //    println!("request={}", request);
     let output = Command::new("curl")
         .arg(request)
         .output()
@@ -187,9 +182,12 @@ pub fn get_key_delta(data: &ReadData, i_job: usize) -> Option<f64> {
     }
 }
 
-
-
-pub fn read_distribution_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> Vec<Vec<f64>> {
+pub fn read_distribution_key(
+    key: &str,
+    l_job_name: &Vec<String>,
+    start_time: &str,
+    end_time: &str,
+) -> Vec<Vec<f64>> {
     let key_sum = format!("linera_{}_sum", key);
     let key_count = format!("linera_{}_count", key);
     let data_sum = read_key(&key_sum, l_job_name, start_time, end_time);
@@ -240,7 +238,7 @@ pub fn read_lines_of_file(file_name: &String) -> Vec<String> {
 pub fn create_single_line(lines: Vec<String>) -> String {
     let mut single_line = String::new();
     for i in 0..lines.len() {
-        if i>0 {
+        if i > 0 {
             single_line += " ";
         }
         single_line += &lines[i];
@@ -250,9 +248,12 @@ pub fn create_single_line(lines: Vec<String>) -> String {
 
 pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Option<f64> {
     let target_ext = format!("{} ", target);
-//    println!("single_line={}", single_line);
-//    println!("target_ext=\"{}\"", target_ext);
-    let l_str_a = single_line.split(&target_ext).map(|x| x.to_string()).collect::<Vec<_>>();
+    //    println!("single_line={}", single_line);
+    //    println!("target_ext=\"{}\"", target_ext);
+    let l_str_a = single_line
+        .split(&target_ext)
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
     if l_str_a.len() < 2 {
         return None;
     }
@@ -262,14 +263,17 @@ pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Opti
     let sec_str_b = sec_str_a.replace("[", " ");
     let sec_str_c = sec_str_b.replace("]", " ");
     let mut metrics_mus = Vec::new();
-    let l_str_b = sec_str_c.split(" ").map(|x| x.to_string()).collect::<Vec<_>>();
+    let l_str_b = sec_str_c
+        .split(" ")
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
     for i in 0..l_str_b.len() {
         if l_str_b[i] == sep_str_micros {
-            let metric_mus : f64 = l_str_b[i - 1].parse().unwrap();
+            let metric_mus: f64 = l_str_b[i - 1].parse().unwrap();
             metrics_mus.push(metric_mus);
         }
         if l_str_b[i] == sep_str_millis {
-            let metric_millis : f64 = l_str_b[i - 1].parse().unwrap();
+            let metric_millis: f64 = l_str_b[i - 1].parse().unwrap();
             let metric_mus = metric_millis * 1000.0;
             metrics_mus.push(metric_mus);
         }
@@ -315,4 +319,3 @@ pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
     }
     (l_keys_counter, l_keys_hist)
 }
-

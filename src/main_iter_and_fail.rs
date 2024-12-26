@@ -7,7 +7,7 @@ use serde::Deserialize;
 use std::fs::File;
 use std::process::Command;
 
-use common::{read_config_file, make_file_available};
+use common::{make_file_available, read_config_file};
 
 #[derive(Deserialize)]
 struct Config {

@@ -38,7 +38,8 @@ fn main() -> anyhow::Result<()> {
                 let l_str = line.split(&entry).collect::<Vec<_>>();
                 if l_str.len() == 2 {
                     let sec_ent = l_str[1];
-                    let sec_sel = sec_ent.chars()
+                    let sec_sel = sec_ent
+                        .chars()
                         .filter(|c| c.is_numeric())
                         .collect::<String>();
                     let value = sec_sel.parse::<u64>().expect("a numerical value");

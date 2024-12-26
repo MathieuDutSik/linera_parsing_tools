@@ -1,7 +1,7 @@
 extern crate chrono;
 extern crate serde_json;
 mod common;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 use common::{nice_float_str, read_config_file};
@@ -122,7 +122,6 @@ fn compute_highest(values: &Vec<f64>) -> f64 {
     max_val
 }
 
-
 fn compute_weighted_average(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
@@ -211,15 +210,13 @@ fn compute_weighted_mean(values: &Vec<f64>, counts: &Vec<f64>, method: &str) -> 
     panic!("method={method} but allowed methods are average / stddev / median");
 }
 
-
-
 fn first_used_index(n_iter: usize, method: &str) -> usize {
     if method == "half" {
         let mid = n_iter / 2;
         return mid;
     }
     if let Some(remain) = method.strip_prefix("skip") {
-        let n_skip : usize = remain.parse::<usize>().expect("An integer");
+        let n_skip: usize = remain.parse::<usize>().expect("An integer");
         return n_skip;
     }
     panic!("Unsupported data droppping method");
@@ -270,7 +267,7 @@ fn main() -> anyhow::Result<()> {
         let result = read_config_file::<MultipleMetric>(log_file)?;
         let mut set = BTreeSet::new();
         for entry in &result.ll_metrics {
-            let key : (String, String) = (entry[0].group.clone(), entry[0].name.clone());
+            let key: (String, String) = (entry[0].group.clone(), entry[0].name.clone());
             set.insert(key);
         }
         println!("log_file={log_file} |set|={}", set.len());
@@ -295,7 +292,7 @@ fn main() -> anyhow::Result<()> {
     for metrics in l_metrics {
         let mut ll_metrics = Vec::new();
         for sm in metrics.ll_metrics {
-            let key : (String, String) = (sm[0].group.clone(), sm[0].name.clone());
+            let key: (String, String) = (sm[0].group.clone(), sm[0].name.clone());
             if set_int.get(&key).is_some() {
                 ll_metrics.push(sm);
             } else {
