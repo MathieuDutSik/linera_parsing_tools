@@ -21,7 +21,6 @@ fn main() {
     }
     let n_arg = arguments.len();
     println!("n_arg={}", n_arg);
-    let (l_keys_counter, l_keys_hist) = read_linera_keys();
     if n_arg == 1 {
         println!("Program is used as");
         println!("parsing_prometheus_run [FileI] [interval]");
@@ -37,6 +36,7 @@ fn main() {
         println!(" and end=2024-09-10T09:22:42Z (as local time)");
         std::process::exit(1)
     }
+    let (l_keys_counter, l_keys_hist) = read_linera_keys();
     let program_name = arguments[0].clone();
     let prometheus_input = arguments[1].clone();
     println!("program_name={:?}", program_name);

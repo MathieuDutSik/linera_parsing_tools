@@ -18,27 +18,27 @@ yaml-rust = "0.4"
 
 [[bin]]
 name = "linera_extract_logs"
-path = "src/main_extract_logs.rs"
+path = "src/linera_extract_logs.rs"
 
 [[bin]]
-name = "parsing_prometheus_run"
-path = "src/main_extract_metrics.rs"
+name = "linera_parsing_prometheus_run"
+path = "src/linera_parsing_prometheus_run.rs"
 
 [[bin]]
-name = "run_and_obtain_metrics"
-path = "src/main_iteration.rs"
+name = "linera_run_and_obtain_metrics"
+path = "src/linera_run_and_obtain_metrics.rs"
 
 [[bin]]
-name = "run_iter_and_fail"
-path = "src/main_iter_and_fail.rs"
+name = "linera_iter_and_fail"
+path = "src/linera_iter_and_fail.rs"
 
 [[bin]]
-name = "run_iter_benchmarks"
-path = "src/main_iter_benchmarks.rs"
+name = "linera_iter_benchmarks"
+path = "src/linera_iter_benchmarks.rs"
 
 [[bin]]
-name = "run_sequence_calls"
-path = "src/main_sequence_calls.rs"
+name = "linera_sequence_calls"
+path = "src/linera_sequence_calls.rs"
 
 [[bin]]
 name = "data_perf_analysis"
