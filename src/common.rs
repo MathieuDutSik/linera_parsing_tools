@@ -3,6 +3,7 @@
 extern crate chrono;
 extern crate serde_json;
 extern crate yaml_rust;
+use sysinfo::{ProcessExt, System, SystemExt};
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -318,4 +319,33 @@ pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
         }
     }
     (l_keys_counter, l_keys_hist)
+}
+
+pub fn kill_processes(names: &Vec<String>) {
+    let mut system = System::new_all();
+
+    // Refresh to get up-to-date process information
+    system.refresh_all();
+
+    // Iterate over all processes
+    for (pid, process) in system.processes() {
+        let mut the_name = None;
+        for name in names {
+            if process.name() == name {
+                the_name = Some(name);
+            }
+        }
+        if let Some(name) = the_name {
+            println!(
+                "Killing process: {} (PID: {pid}) name={name}",
+                process.name()
+            );
+            // Send the `Signal::Kill` signal to the process
+            if process.kill() {
+                println!("Successfully killed process: {pid}: {name}");
+            } else {
+                eprintln!("Failed to kill process: {pid} {name}");
+            }
+        }
+    }
 }

@@ -6,12 +6,11 @@ mod common;
 use chrono::{DateTime, Utc};
 use common::{
     get_float, get_key_delta, get_time_string_lower, get_time_string_upper, make_file_available,
-    read_config_file, read_key, read_lines_of_file,
+    read_config_file, read_key, read_lines_of_file, kill_processes,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{fs::File, io::Write as _, process::Command, time::Instant};
-use sysinfo::{ProcessExt, System, SystemExt};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -408,35 +407,6 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
     Ok(l_metrics)
 }
 
-fn kill_after_work(config: &Config) {
-    let mut system = System::new_all();
-
-    // Refresh to get up-to-date process information
-    system.refresh_all();
-
-    // Iterate over all processes
-    for (pid, process) in system.processes() {
-        let mut the_name = None;
-        for name in &config.kill_after_work {
-            if process.name() == name {
-                the_name = Some(name);
-            }
-        }
-        if let Some(name) = the_name {
-            println!(
-                "Killing process: {} (PID: {pid}) name={name}",
-                process.name()
-            );
-            // Send the `Signal::Kill` signal to the process
-            if process.kill() {
-                println!("Successfully killed process: {pid}: {name}");
-            } else {
-                eprintln!("Failed to kill process: {pid} {name}");
-            }
-        }
-    }
-}
-
 fn main() -> anyhow::Result<()> {
     let arguments = std::env::args().into_iter().collect::<Vec<_>>();
     let n_arg = arguments.len();
@@ -567,7 +537,7 @@ fn main() -> anyhow::Result<()> {
     //
     // Kill processes
     //
-    kill_after_work(&config);
+    kill_processes(&config.kill_after_work);
     let end_time: DateTime<Utc> = Utc::now();
     let time_delta = end_time.signed_duration_since(start_time);
     let num_seconds = time_delta.num_seconds();
