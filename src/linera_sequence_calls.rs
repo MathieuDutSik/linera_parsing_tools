@@ -10,12 +10,17 @@ use std::path::Path;
 use std::process::Command;
 
 #[derive(Deserialize)]
-struct Config {
-    directories: Vec<String>,
-    commands: Vec<String>,
-    stdouts: Vec<String>,
-    stderrs: Vec<String>,
+struct Entry {
+    directory: String,
+    command: String,
+    stdout: String,
+    stderr: String,
 }
+
+
+
+#[derive(Deserialize)]
+struct Config(Vec<Entry>);
 
 fn main() -> anyhow::Result<()> {
     let arguments = std::env::args().into_iter().collect::<Vec<_>>();
@@ -28,13 +33,13 @@ fn main() -> anyhow::Result<()> {
     let file_input = &arguments[1];
     println!("file_input={}", file_input);
     let config = read_config_file::<Config>(file_input)?;
-    let n_command = config.directories.len();
+    let n_command = config.0.len();
     println!("n_command={}", n_command);
-    for i_command in 0..n_command {
-        let directory = config.directories[i_command].clone();
-        let command = config.commands[i_command].clone();
-        let stdout = config.stdouts[i_command].clone();
-        let stderr = config.stderrs[i_command].clone();
+    for (i_command, entry) in config.0.into_iter().enumerate() {
+        let directory = entry.directory;
+        let command = entry.command;
+        let stdout = entry.stdout;
+        let stderr = entry.stderr;
         println!(
             "i_command={} directory={} command={} stdout={} stderr={}",
             i_command, directory, command, stdout, stderr
