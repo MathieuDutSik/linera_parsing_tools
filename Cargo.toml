@@ -41,5 +41,5 @@ name = "linera_sequence_calls"
 path = "src/linera_sequence_calls.rs"
 
 [[bin]]
-name = "data_perf_analysis"
-path = "src/main_data_perf_analysis.rs"
+name = "linera_data_perf_analysis"
+path = "src/linera_data_perf_analysis.rs"

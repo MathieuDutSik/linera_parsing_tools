@@ -20,7 +20,6 @@ fn main() {
         arguments.push(argument);
     }
     let n_arg = arguments.len();
-    println!("n_arg={}", n_arg);
     if n_arg == 1 {
         println!("Program is used as");
         println!("parsing_prometheus_run [FileI] [interval]");

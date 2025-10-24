@@ -43,57 +43,6 @@ fn compute_average(values: Vec<f64>) -> f64 {
     avg
 }
 
-/*
-fn compute_stddev(values: Vec<f64>) -> f64 {
-    let len = values.len();
-    if len == 0 {
-        panic!("We should have a non-zero number of values in compute_average");
-    }
-    let mut sum_p1 = 0 as f64;
-    let mut sum_p2 = 0 as f64;
-    for value in values {
-        sum_p1 += value;
-        sum_p2 += value * value;
-    }
-    let avg_p1 = sum_p1 / (len as f64);
-    let avg_p2 = sum_p2 / (len as f64);
-    let variance = avg_p2 - avg_p1 * avg_p1;
-    let stddev = variance.sqrt();
-    stddev
-}
-
-fn compute_median(mut data: Vec<f64>) -> f64 {
-    let len = data.len();
-    if len == 0 {
-        panic!("We should have a non-zero number of values in compute_median");
-    }
-
-    data.sort_by(|a, b| a.partial_cmp(b).unwrap()); // Handle sorting
-    let mid = len / 2;
-
-    if len % 2 == 0 {
-        // Average of two middle values
-        (data[mid - 1] + data[mid]) / 2.0
-    } else {
-        // Middle value
-        data[mid]
-    }
-}
-
-fn compute_mean(values: Vec<f64>, method: &str) -> f64 {
-    if method == "average" {
-        return compute_average(values);
-    }
-    if method == "stddev" {
-        return compute_stddev(values);
-    }
-    if method == "median" {
-        return compute_median(values);
-    }
-    panic!("method={method} but allowed methods are average / stddev / median");
-}
-*/
-
 fn compute_lowest(values: &Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
@@ -249,10 +198,9 @@ fn main() -> anyhow::Result<()> {
         arguments.push(argument);
     }
     let n_arg = arguments.len();
-    println!("n_arg={}", n_arg);
-    if n_arg == 1 {
+    if n_arg != 2 {
         println!("Program is used as");
-        println!("running slack_benchmarks_formatting [FileI]");
+        println!("linera_data_perf_analysis [FileI]");
         std::process::exit(1)
     }
     let file_input = &arguments[1];

@@ -20,10 +20,9 @@ fn main() -> anyhow::Result<()> {
         arguments.push(argument);
     }
     let n_arg = arguments.len();
-    println!("n_arg={}", n_arg);
-    if n_arg == 1 {
+    if n_arg != 2{
         println!("Program is used as");
-        println!("running linera_extract_logs [FileI]");
+        println!("linera_extract_logs [FileI]");
         std::process::exit(1)
     }
     let file_input = &arguments[1];

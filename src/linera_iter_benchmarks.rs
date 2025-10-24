@@ -80,10 +80,9 @@ fn main() -> anyhow::Result<()> {
         arguments.push(argument);
     }
     let n_arg = arguments.len();
-    println!("n_arg={}", n_arg);
-    if n_arg == 1 {
+    if n_arg != 2 {
         println!("Program is used as");
-        println!("running commands [FileI]");
+        println!("linera_iter_benchmarks [FileI]");
         std::process::exit(1)
     }
     let file_input = &arguments[1];
