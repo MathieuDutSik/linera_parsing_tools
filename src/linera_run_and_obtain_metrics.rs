@@ -438,12 +438,7 @@ fn kill_after_work(config: &Config) {
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = std::env::args();
-    let mut arguments = Vec::new();
-    for argument in args {
-        println!("argument={argument}");
-        arguments.push(argument);
-    }
+    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg != 2 {
         println!("Program is used as");
