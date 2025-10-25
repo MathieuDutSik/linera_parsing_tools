@@ -78,6 +78,7 @@ fn main() -> anyhow::Result<()> {
     let config = read_config_file::<Config>(file_input)?;
     let n_command = config.0.len();
     println!("n_command={}", n_command);
+//    let mut childs = Vec::new();
     for (i_command, entry) in config.0.into_iter().enumerate() {
         let nature = entry.nature.clone();
         println!("i_command={i_command} nature={nature}");

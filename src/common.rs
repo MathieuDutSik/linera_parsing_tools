@@ -7,12 +7,13 @@ use sysinfo::{ProcessExt, System, SystemExt};
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::path::Path;
-use std::process::Command;
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs::File,
+    io::{BufRead, BufReader},
+    path::Path,
+    process::Command,
+};
 
 pub fn get_float(input: &str) -> f64 {
     let input = input.trim_matches(|c| c == '"').to_string();
@@ -348,4 +349,28 @@ pub fn kill_processes(names: &Vec<String>) {
             }
         }
     }
+}
+
+pub fn parse_environments(entries: &Vec<String>) -> anyhow::Result<HashMap<String, String>> {
+    let mut map = HashMap::new();
+    let start_str = "export ";
+    for entry in entries {
+        if !entry.starts_with(start_str) {
+            anyhow::bail!("Should starts with export ");
+        }
+        let entry = &entry[start_str.len()..];
+        let l_str = entry.split('=').map(|x| x.to_string()).collect::<Vec<_>>();
+        if l_str.len() < 2 {
+            println!("l_str={:?}", l_str);
+            anyhow::bail!("l_str should have length at least 2");
+        }
+        let key = l_str[0].to_string();
+        let mut value = l_str[1].to_string();
+        for i in 2..l_str.len() {
+            value += "=";
+            value += &l_str[i];
+        }
+        map.insert(key, value);
+    }
+    Ok(map)
 }

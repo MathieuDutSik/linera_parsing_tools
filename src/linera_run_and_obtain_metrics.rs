@@ -6,7 +6,7 @@ mod common;
 use chrono::{DateTime, Utc};
 use common::{
     get_float, get_key_delta, get_time_string_lower, get_time_string_upper, make_file_available,
-    read_config_file, read_key, read_lines_of_file, kill_processes,
+    read_config_file, read_key, read_lines_of_file, kill_processes, parse_environments,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -58,31 +58,12 @@ struct MultipleMetric {
 }
 
 fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String, String>> {
-    let mut map = HashMap::new();
-    let start_str = "export ";
     for sel in &config.environments {
         if &sel.command == command {
-            for entry in &sel.environments {
-                if !entry.starts_with(start_str) {
-                    anyhow::bail!("Should starts with export ");
-                }
-                let entry = &entry[start_str.len()..];
-                let l_str = entry.split('=').map(|x| x.to_string()).collect::<Vec<_>>();
-                if l_str.len() < 2 {
-                    println!("l_str={:?}", l_str);
-                    anyhow::bail!("l_str should have length at least 2");
-                }
-                let key = l_str[0].to_string();
-                let mut value = l_str[1].to_string();
-                for i in 2..l_str.len() {
-                    value += "=";
-                    value += &l_str[i];
-                }
-                map.insert(key, value);
-            }
+            return parse_environments(&sel.environments);
         }
     }
-    Ok(map)
+    Ok(HashMap::new())
 }
 
 fn get_runtime(file_name: &String, target_runtime: &String) -> f64 {
@@ -422,7 +403,7 @@ fn main() -> anyhow::Result<()> {
     let mut childs = Vec::new();
     for (i_command, command) in config.commands.iter().enumerate() {
         println!("i_command={i_command}");
-        println!("   command={command}");
+        println!("  command={command}");
         let file_out_str = format!("OUT_COMM_{}.out", i_command);
         let file_err_str = format!("OUT_COMM_{}.err", i_command);
         make_file_available(&file_out_str)?;
