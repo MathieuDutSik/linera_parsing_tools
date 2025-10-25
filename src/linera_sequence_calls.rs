@@ -9,6 +9,8 @@ use std::process::Child;
 
 #[derive(Deserialize)]
 struct Entry {
+    name: String,
+    #[serde(default = "Entry::default_nature")]
     nature: String,
     #[serde(default)]
     directory: String,
@@ -24,26 +26,41 @@ struct Entry {
     kill_names: Vec<String>,
 }
 
+impl Entry {
+    fn default_nature() -> String {
+        "execute_command".to_string()
+    }
+}
+
+
 #[derive(Deserialize)]
 struct Config(Vec<Entry>);
 
 
 fn execute_command(i_command: usize, entry: &Entry, childs: &mut Vec<Child>) -> anyhow::Result<()> {
+    let name = &entry.name;
     let directory = &entry.directory;
     let command = &entry.command;
-    let file_out_str = &entry.stdout;
-    let file_err_str = &entry.stderr;
+    let mut file_out_str = entry.stdout.to_string();
+    let mut file_err_str = entry.stderr.to_string();
+    if file_out_str.len() == 0 {
+        file_out_str = format!("COMM_DEFAULT_{i_command}_out");
+    }
+    if file_err_str.len() == 0 {
+        file_err_str = format!("COMM_DEFAULT_{i_command}_err");
+    }
     let environments = &entry.environments;
-    println!(
-        "i_command={} directory={} command={} stdout={} stderr={}",
-        i_command, directory, command, file_out_str, file_err_str,
-    );
+    println!("i_command={i_command} name={name}");
     //
-    let directory: Option<String> = Some(directory.clone());
+    let directory = if directory.len() > 0 {
+        Some(directory.clone())
+    } else {
+        None
+    };
     execute_command_general(command,
                             directory,
-                            file_out_str.to_string(),
-                            file_err_str.to_string(),
+                            file_out_str,
+                            file_err_str,
                             &environments,
                             childs)?;
     Ok(())
