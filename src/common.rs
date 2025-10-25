@@ -12,7 +12,8 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::Path,
-    process::Command,
+    time::Instant,
+    process::{Child, Command},
 };
 
 pub fn get_float(input: &str) -> f64 {
@@ -96,6 +97,16 @@ pub fn nice_float_str(value: f64) -> String {
     }
     format!("{:.5}", value)
 }
+
+pub fn get_red_command(command: &String) -> String {
+    let len_command = command.len();
+    if command.ends_with(" &") {
+        command[..len_command - 2].to_string()
+    } else {
+        command.clone()
+    }
+}
+
 
 pub fn make_file_available(file_name: &str) -> anyhow::Result<()> {
     let mut iter = 0;
@@ -373,4 +384,51 @@ pub fn parse_environments(entries: &Vec<String>) -> anyhow::Result<HashMap<Strin
         map.insert(key, value);
     }
     Ok(map)
+}
+
+
+pub fn execute_command_general(command: &String,
+                               file_out_str: String,
+                               file_err_str: String,
+                               environments: &Vec<String>,
+                               childs: &mut Vec<Child>) -> anyhow::Result<()> {
+    make_file_available(&file_out_str)?;
+    make_file_available(&file_err_str)?;
+    let file_out = File::create(file_out_str)?;
+    let file_err = File::create(file_err_str)?;
+    let red_command = get_red_command(command);
+    let envs = parse_environments(environments)?;
+    println!("red_command={}", red_command);
+    let l_str = red_command
+        .split(' ')
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>();
+    let call_command = &l_str[0];
+    let mut comm_args = Vec::new();
+    for i in 1..l_str.len() {
+        comm_args.push(l_str[i].clone());
+    }
+    if command.ends_with(" &") {
+        let child = Command::new(call_command)
+            .stdout::<File>(file_out)
+            .stderr::<File>(file_err)
+            .envs(&envs)
+            .args(comm_args)
+            .spawn()?;
+        childs.push(child);
+    } else {
+        let time_start = Instant::now();
+        let output = Command::new(call_command)
+            .stdout::<File>(file_out)
+            .stderr::<File>(file_err)
+            .envs(&envs)
+            .args(comm_args)
+            .output()?;
+        println!(
+            "   output={:?} in {} ms",
+            output,
+            time_start.elapsed().as_millis()
+        );
+    }
+    Ok(())
 }

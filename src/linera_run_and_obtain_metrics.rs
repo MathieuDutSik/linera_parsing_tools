@@ -7,10 +7,10 @@ use chrono::{DateTime, Utc};
 use common::{
     get_float, get_key_delta, get_time_string_lower, get_time_string_upper, make_file_available,
     read_config_file, read_key, read_lines_of_file, kill_processes, parse_environments,
+    get_red_command, execute_command_general,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::{fs::File, io::Write as _, process::Command, time::Instant};
+use std::{fs::File, io::Write as _, process::Command};
 
 #[derive(Deserialize)]
 struct SingleEnvironmentList {
@@ -57,13 +57,13 @@ struct MultipleMetric {
     ll_metrics: Vec<Vec<SingleMetric>>,
 }
 
-fn get_environments(config: &Config, command: &String) -> anyhow::Result<HashMap<String, String>> {
+fn get_environments(config: &Config, command: &String) -> Vec<String> {
     for sel in &config.environments {
         if &sel.command == command {
-            return parse_environments(&sel.environments);
+            return sel.environments.clone();
         }
     }
-    Ok(HashMap::new())
+    Vec::new()
 }
 
 fn get_runtime(file_name: &String, target_runtime: &String) -> f64 {
@@ -168,7 +168,8 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
     let file_out = File::create(file_out_str.clone())?;
     let file_err = File::create(file_err_str.clone())?;
     let start_time: DateTime<Utc> = Utc::now();
-    let envs = get_environments(config, &config.critical_command)?;
+    let environments = get_environments(config, &config.critical_command);
+    let envs = parse_environments(&environments)?;
     println!("single_execution envs={:?}", envs);
     let l_str = config
         .critical_command
@@ -406,57 +407,9 @@ fn main() -> anyhow::Result<()> {
         println!("  command={command}");
         let file_out_str = format!("OUT_COMM_{}.out", i_command);
         let file_err_str = format!("OUT_COMM_{}.err", i_command);
-        make_file_available(&file_out_str)?;
-        make_file_available(&file_err_str)?;
-        let file_out = File::create(file_out_str)?;
-        let file_err = File::create(file_err_str)?;
-        let len_command = command.len();
-        if command.ends_with(" &") {
-            let red_command = command[..len_command - 2].to_string();
-            println!("   red_command={}", red_command);
-            let envs = get_environments(&config, &red_command)?;
-            println!("   SPA envs={:?}", envs);
-            let l_str = red_command
-                .split(' ')
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>();
-            let command = &l_str[0];
-            let mut comm_args = Vec::new();
-            for i in 1..l_str.len() {
-                comm_args.push(l_str[i].clone());
-            }
-            let child = Command::new(command)
-                .stdout::<File>(file_out)
-                .stderr::<File>(file_err)
-                .envs(&envs)
-                .args(comm_args)
-                .spawn()?;
-            childs.push(child);
-        } else {
-            let l_str = command
-                .split(' ')
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>();
-            let command = &l_str[0];
-            let envs = get_environments(&config, command)?;
-            println!("   DIR envs={:?}", envs);
-            let mut comm_args = Vec::new();
-            for i in 1..l_str.len() {
-                comm_args.push(l_str[i].clone());
-            }
-            let time_start = Instant::now();
-            let output = Command::new(command)
-                .stdout::<File>(file_out)
-                .stderr::<File>(file_err)
-                .envs(&envs)
-                .args(comm_args)
-                .output()?;
-            println!(
-                "   output={:?} in {} ms",
-                output,
-                time_start.elapsed().as_millis()
-            );
-        }
+        let red_command = get_red_command(command);
+        let environments = get_environments(&config, &red_command);
+        execute_command_general(command, file_out_str, file_err_str, &environments, &mut childs)?;
     }
     println!("------ The initial runs have been done -------");
     //
