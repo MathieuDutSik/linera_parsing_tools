@@ -18,7 +18,7 @@ struct Config {
 }
 
 fn main() -> anyhow::Result<()> {
-    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
+    let arguments = std::env::args().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg != 2 {
         println!("Program is used as");
@@ -47,10 +47,7 @@ fn main() -> anyhow::Result<()> {
         make_file_available(&file_err_str)?;
         let file_out = File::create(file_out_str)?;
         let file_err = File::create(file_err_str)?;
-        let mut comm_args = Vec::new();
-        for i in 1..l_str.len() {
-            comm_args.push(l_str[i].clone());
-        }
+        let comm_args = l_str[1..].to_vec();
         let output = Command::new(command)
             .stdout::<File>(file_out)
             .stderr::<File>(file_err)
@@ -65,11 +62,9 @@ fn main() -> anyhow::Result<()> {
                 println!("We reached one failure, end the computation");
                 return Ok(());
             }
-        } else {
-            if config.stop_at_one_success {
-                println!("We reached one success, end the computation");
-                return Ok(());
-            }
+        } else if config.stop_at_one_success {
+            println!("We reached one success, end the computation");
+            return Ok(());
         }
     }
     println!("n_iter={} n_fail={}", n_iter, n_fail);

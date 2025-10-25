@@ -35,12 +35,11 @@ fn compute_average(values: Vec<f64>) -> f64 {
     if len == 0 {
         panic!("We should have a non-zero number of values in compute_average");
     }
-    let mut sum = 0 as f64;
+    let mut sum = 0_f64;
     for value in values {
         sum += value;
     }
-    let avg = sum / (len as f64);
-    avg
+    sum / (len as f64)
 }
 
 fn compute_lowest(values: &Vec<f64>) -> f64 {
@@ -71,38 +70,37 @@ fn compute_highest(values: &Vec<f64>) -> f64 {
     max_val
 }
 
-fn compute_weighted_average(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+fn compute_weighted_average(values: &[f64], counts: &Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
         panic!("We should have a non-zero number of values in compute_weighted_average");
     }
-    let mut sum_val = 0 as f64;
-    let mut sum_cnt = 0 as f64;
-    for (value, count) in values.into_iter().zip(counts) {
+    let mut sum_val = 0_f64;
+    let mut sum_cnt = 0_f64;
+    for (value, count) in values.iter().zip(counts) {
         sum_val += count * value;
         sum_cnt += count;
     }
-    let avg = sum_val / sum_cnt;
-    avg
+    sum_val / sum_cnt
 }
 
-fn compute_sum_runtimes(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
-    let mut sum_val = 0 as f64;
-    for (value, count) in values.into_iter().zip(counts) {
+fn compute_sum_runtimes(values: &[f64], counts: &Vec<f64>) -> f64 {
+    let mut sum_val = 0_f64;
+    for (value, count) in values.iter().zip(counts) {
         sum_val += count * value;
     }
     sum_val
 }
 
-fn compute_weighted_stddev(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+fn compute_weighted_stddev(values: &[f64], counts: &Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
         panic!("We should have a non-zero number of values in compute_weighted_stddev");
     }
-    let mut sum_p0 = 0 as f64;
-    let mut sum_p1 = 0 as f64;
-    let mut sum_p2 = 0 as f64;
-    for (value, count) in values.into_iter().zip(counts) {
+    let mut sum_p0 = 0_f64;
+    let mut sum_p1 = 0_f64;
+    let mut sum_p2 = 0_f64;
+    for (value, count) in values.iter().zip(counts) {
         sum_p0 += count;
         sum_p1 += count * value;
         sum_p2 += count * value * value;
@@ -110,24 +108,23 @@ fn compute_weighted_stddev(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
     let avg_p1 = sum_p1 / sum_p0;
     let avg_p2 = sum_p2 / sum_p0;
     let variance = avg_p2 - avg_p1 * avg_p1;
-    let stddev = variance.sqrt();
-    stddev
+    variance.sqrt()
 }
 
-fn compute_weighted_median(values: &Vec<f64>, counts: &Vec<f64>) -> f64 {
+fn compute_weighted_median(values: &[f64], counts: &Vec<f64>) -> f64 {
     let len = values.len();
     if len == 0 {
         panic!("We should have a non-zero number of values in compute_weighted_median");
     }
     let mut data = Vec::new();
-    let mut sum_weight = 0 as f64;
-    for (value, count) in values.into_iter().zip(counts) {
+    let mut sum_weight = 0_f64;
+    for (value, count) in values.iter().zip(counts) {
         sum_weight += count;
         data.push((value, count));
     }
-    data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap()); // Handle sorting
+    data.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap()); // Handle sorting
     let target_weight = sum_weight / 2.0;
-    let mut pos = 0 as f64;
+    let mut pos = 0_f64;
     for idx in 0..data.len() {
         pos += data[idx].1;
         if pos > target_weight {
@@ -173,7 +170,7 @@ fn first_used_index(n_iter: usize, method: &str) -> usize {
 
 fn get_entry(value: f64, unit: &str) -> String {
     if value > 1000.0 && unit == "ms" {
-        let value_red = value / (1000 as f64);
+        let value_red = value / (1000_f64);
         format!("{} s", nice_float_str(value_red))
     } else {
         format!("{} {}", nice_float_str(value), unit)
@@ -191,7 +188,7 @@ fn get_bold(choice_format: &str) -> String {
 }
 
 fn main() -> anyhow::Result<()> {
-    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
+    let arguments = std::env::args().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg != 2 {
         println!("Program is used as");
@@ -221,7 +218,7 @@ fn main() -> anyhow::Result<()> {
     for key in l_set[0].clone() {
         let mut is_present = true;
         for i_run in 1..n_runs {
-            if l_set[i_run].get(&key).is_none() {
+            if l_set[i_run].contains(&key) {
                 is_present = false;
             }
         }
@@ -236,7 +233,7 @@ fn main() -> anyhow::Result<()> {
         let mut ll_metrics = Vec::new();
         for sm in metrics.ll_metrics {
             let key: (String, String) = (sm[0].group.clone(), sm[0].name.clone());
-            if set_int.get(&key).is_some() {
+            if set_int.contains(&key) {
                 ll_metrics.push(sm);
             } else {
                 println!("Dropping {} : {}", key.0, key.1);
@@ -270,7 +267,7 @@ fn main() -> anyhow::Result<()> {
             println!("{group}:");
         }
         let mut idx_best = 0;
-        let mut best_metric = 0 as f64;
+        let mut best_metric = 0_f64;
         let mut all_counts = Vec::new();
         let mut metrics = Vec::new();
         let mut l_values = Vec::new();
@@ -285,7 +282,7 @@ fn main() -> anyhow::Result<()> {
             let mut counts = Vec::new();
             for vec in &v[first_index..] {
                 values.extend(vec.values.clone());
-                let mut sum_count = 0 as f64;
+                let mut sum_count = 0_f64;
                 for ent in &vec.counts {
                     sum_count += ent;
                 }
@@ -299,11 +296,9 @@ fn main() -> anyhow::Result<()> {
             if i_run == 0 {
                 idx_best = i_run;
                 best_metric = metric;
-            } else {
-                if metric < best_metric {
-                    idx_best = i_run;
-                    best_metric = metric;
-                }
+            } else if metric < best_metric {
+                idx_best = i_run;
+                best_metric = metric;
             }
         }
         print!("* ");
@@ -325,9 +320,9 @@ fn main() -> anyhow::Result<()> {
         print!(": {metric_name_red} ({avg_count:.2} times)");
         println!();
         if print_all_vals {
-            for i_run in 0..n_runs {
+            for (i_run, values) in l_values.into_iter().enumerate() {
                 let name = config.names[i_run].clone();
-                println!("{name} : vals={:?}", l_values[i_run]);
+                println!("{name} : vals={:?}", values);
             }
         }
     }

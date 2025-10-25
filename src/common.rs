@@ -92,18 +92,18 @@ pub fn get_unit_of_key(key: &str) -> String {
 }
 
 pub fn nice_float_str(value: f64) -> String {
-    if value > 1 as f64 {
+    if value > 1_f64 {
         return format!("{:.2}", value);
     }
     format!("{:.5}", value)
 }
 
-pub fn get_red_command(command: &String) -> String {
+pub fn get_red_command(command: &str) -> String {
     let len_command = command.len();
     if command.ends_with(" &") {
         command[..len_command - 2].to_string()
     } else {
-        command.clone()
+        command.to_string()
     }
 }
 
@@ -117,7 +117,7 @@ pub fn make_file_available(file_name: &str) -> anyhow::Result<()> {
             format!("{}_V{}", file_name, iter)
         };
         if !Path::new(&first_free_file_attempt).exists() {
-            if file_name != &first_free_file_attempt {
+            if file_name != first_free_file_attempt {
                 std::fs::rename(file_name, &first_free_file_attempt)?;
             }
             return Ok(());
@@ -133,7 +133,7 @@ pub fn read_config_file<Config: DeserializeOwned>(file_input: &str) -> anyhow::R
     Ok(config)
 }
 
-pub fn read_key(key: &str, l_job_name: &Vec<String>, start_time: &str, end_time: &str) -> ReadData {
+pub fn read_key(key: &str, l_job_name: &[String], start_time: &str, end_time: &str) -> ReadData {
     let mut min_time: usize = usize::MAX;
     let mut map_job_name = BTreeMap::<String, usize>::new();
     let n_job = l_job_name.len();
@@ -197,7 +197,7 @@ pub fn get_key_delta(data: &ReadData, i_job: usize) -> Option<f64> {
 
 pub fn read_distribution_key(
     key: &str,
-    l_job_name: &Vec<String>,
+    l_job_name: &[String],
     start_time: &str,
     end_time: &str,
 ) -> Vec<Vec<f64>> {
@@ -250,11 +250,11 @@ pub fn read_lines_of_file(file_name: &String) -> Vec<String> {
 
 pub fn create_single_line(lines: Vec<String>) -> String {
     let mut single_line = String::new();
-    for i in 0..lines.len() {
+    for (i, line) in lines.iter().enumerate() {
         if i > 0 {
             single_line += " ";
         }
-        single_line += &lines[i];
+        single_line += line;
     }
     single_line
 }
@@ -428,7 +428,7 @@ pub fn execute_command_general(command: &String,
         .collect::<Vec<_>>();
     let call_command = get_call_command(&directory, &l_str[0]);
     println!("call_command={}", call_command);
-    let comm_args = l_str[1..].into_iter().map(|x| x.clone()).collect::<Vec<String>>();
+    let comm_args = l_str[1..].to_vec();
     println!("comm_args={:?}", comm_args);
     if command.ends_with(" &") {
         let child = if let Some(directory) = directory {

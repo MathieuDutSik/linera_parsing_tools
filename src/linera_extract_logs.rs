@@ -13,7 +13,7 @@ struct Config {
 }
 
 fn main() -> anyhow::Result<()> {
-    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
+    let arguments = std::env::args().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg != 2{
         println!("Program is used as");
