@@ -261,8 +261,6 @@ pub fn create_single_line(lines: Vec<String>) -> String {
 
 pub fn get_benchmark_average_metric_mus(single_line: &str, target: &str) -> Option<f64> {
     let target_ext = format!("{} ", target);
-    //    println!("single_line={}", single_line);
-    //    println!("target_ext=\"{}\"", target_ext);
     let l_str_a = single_line
         .split(&target_ext)
         .map(|x| x.to_string())
@@ -405,12 +403,15 @@ pub fn execute_command_general(command: &String,
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
     let call_command = &l_str[0];
+    println!("call_command={}", call_command);
     let mut comm_args = Vec::new();
     for i in 1..l_str.len() {
         comm_args.push(l_str[i].clone());
     }
+    println!("comm_args={:?}", comm_args);
     if command.ends_with(" &") {
         let child = if let Some(directory) = directory {
+            println!("case 1, directory={directory}");
             let path = Path::new(&directory);
             Command::new(call_command)
                 .current_dir(path)
@@ -420,6 +421,7 @@ pub fn execute_command_general(command: &String,
                 .args(comm_args)
                 .spawn()?
         } else {
+            println!("case 2");
             Command::new(call_command)
                 .stdout::<File>(file_out)
                 .stderr::<File>(file_err)
@@ -431,6 +433,7 @@ pub fn execute_command_general(command: &String,
     } else {
         let time_start = Instant::now();
         let output = if let Some(directory) = directory {
+            println!("case 3, directory={directory}");
             let path = Path::new(&directory);
             Command::new(call_command)
                 .current_dir(path)
@@ -440,6 +443,7 @@ pub fn execute_command_general(command: &String,
                 .args(comm_args)
                 .output()?
         } else {
+            println!("case 4");
             Command::new(call_command)
                 .stdout::<File>(file_out)
                 .stderr::<File>(file_err)

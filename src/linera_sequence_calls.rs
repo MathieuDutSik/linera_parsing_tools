@@ -39,6 +39,7 @@ struct Config(Vec<Entry>);
 
 fn execute_command(i_command: usize, entry: &Entry, childs: &mut Vec<Child>) -> anyhow::Result<()> {
     let name = &entry.name;
+    println!("i_command={i_command} (execute_command) name={name}");
     let directory = &entry.directory;
     let command = &entry.command;
     let mut file_out_str = entry.stdout.to_string();
@@ -50,7 +51,6 @@ fn execute_command(i_command: usize, entry: &Entry, childs: &mut Vec<Child>) -> 
         file_err_str = format!("COMM_DEFAULT_{i_command}_err");
     }
     let environments = &entry.environments;
-    println!("i_command={i_command} name={name}");
     //
     let directory = if directory.len() > 0 {
         Some(directory.clone())
@@ -66,6 +66,12 @@ fn execute_command(i_command: usize, entry: &Entry, childs: &mut Vec<Child>) -> 
     Ok(())
 }
 
+fn do_kill_processes(i_command: usize, entry: &Entry) -> anyhow::Result<()> {
+    let name = &entry.name;
+    println!("i_command={i_command} (kill_processes) name={name}");
+    kill_processes(&entry.kill_names);
+    Ok(())
+}
 
 
 
@@ -86,14 +92,14 @@ fn main() -> anyhow::Result<()> {
     let mut childs = Vec::new();
     for (i_command, entry) in config.0.into_iter().enumerate() {
         let nature = entry.nature.clone();
-        println!("i_command={i_command} nature={nature}");
+        println!("---------------------------- {i_command} / {n_command} ----------------------------");
 
         match nature.trim() {
             "execute_command" => {
                 execute_command(i_command, &entry, &mut childs)?;
             },
             "kill_processes" => {
-                kill_processes(&entry.kill_names);
+                do_kill_processes(i_command, &entry)?;
             },
             _ => {
                 anyhow::bail!("No matching entry for nature={nature}");

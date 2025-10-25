@@ -1,57 +1,58 @@
 [
     {
         "name": "Removing initial directory if existing",
-        "nature": "execute_command",
         "directory": "/tmp/",
         "command": "rm -rf TEST_MIGRATION"
-    }
+    },
     {
         "name": "Creating initial directory",
-        "nature": "execute_command",
         "directory": "/tmp/",
         "command": "mkdir -p TEST_MIGRATION/WORK"
-    }
+    },
     {
         "name": "Cloning the before migration stuff",
-        "nature": "execute_command",
         "directory": "/tmp/TEST_MIGRATION/",
         "command": "git clone https://github.com/MathieuDutSik/linera-protocol_second linera-protocol_old_schema"
     },
     {
-        "name": "Cloning the after migration stuff",
-        "nature": "execute_command",
-        "directory": "/tmp/TEST_MIGRATION/",
-        "command": "git clone https://github.com/MathieuDutSik/linera-protocol_second linera-protocol_new_schema"
-    },
-    {
-        "name": "Shifting to right commit and compiling",
-        "nature": "execute_command",
+        "name": "Shifting to commit before schema switch",
         "directory": "/tmp/TEST_MIGRATION/linera-protocol_old_schema",
-        "command": "git checkout df074a1016f6b98d925b04f51165d51ee97b728e && cargo build"
+        "command": "git checkout df074a1016f6b98d925b04f51165d51ee97b728e"
     },
     {
-        "name": "Shifting to right branch commit and compiling",
-        "nature": "execute_command",
-        "directory": "/tmp/TEST_MIGRATION/linera-protocol_new_schema",
-        "command": "git checkout migration_database_schema && cargo build"
+        "name": "Compiling the old code (with ScyllaDb)",
+        "directory": "/tmp/TEST_MIGRATION/linera-protocol_old_schema",
+        "command": "cargo build --features scylladb"
     },
     {
         "name": "Eliminating old storage",
-        "nature": "execute_command",
         "directory": "/tmp/TEST_MIGRATION/linera-protocol_before_migration",
         "command": "./target/debug/linera storage delete-all --storage scylladb:tcp:localhost:9042:table_a"
     },
     {
-        "name": "Spanning the validators",
-        "nature": "execute_command",
+        "name": "Cloning the after migration stuff",
+        "directory": "/tmp/TEST_MIGRATION/",
+        "command": "git clone https://github.com/MathieuDutSik/linera-protocol_second linera-protocol_new_schema"
+    },
+    {
+        "name": "Shifting to the migration branch",
+        "directory": "/tmp/TEST_MIGRATION/linera-protocol_new_schema",
+        "command": "git checkout migration_database_schema"
+    },
+    {
+        "name": "Compiling the migration branch (with ScyllaDb)",
+        "directory": "/tmp/TEST_MIGRATION/linera-protocol_new_schema",
+        "command": "cargo build --features scylladb"
+    },
+    {
+        "name": "Spanning the validators on the old schema",
         "directory": "/tmp/TEST_MIGRATION/linera-protocol_old_schema",
         "command": "./target/debug/linera net up --policy-config testnet --storage service:tcp:localhost:1235:table_a --path /tmp/TEST_MIGRATION/WORK &",
         "stdout": "Linera_old_schema_net_up_out",
         "stderr": "Linera_old_schema_net_up_err"
     },
     {
-        "name": "Running the faucet",
-        "nature": "execute_command",
+        "name": "Running the faucet on the old schema",
         "directory": "/tmp/TEST_MIGRATION/linera-protocol_old_schema",
         "command": "./target/debug/linera net up --policy-config testnet --storage service:tcp:localhost:1235:table_a --path /tmp/TEST_MIGRATION/WORK &",
         "environments": ["export LINERA_WALLET=/tmp/TEST_MIGRATION/WORK/wallet_0.json",
@@ -60,4 +61,14 @@
         "stdout": "Linera_old_schema_faucet_out",
         "stderr": "Linera_old_schema_faucet_err"
     },
+    {
+        "name": "Running the faucet on the old schema",
+        "directory": "/tmp/TEST_MIGRATION/linera-protocol_old_schema",
+        "command": "./target/debug/linera net up --policy-config testnet --storage service:tcp:localhost:1235:table_a --path /tmp/TEST_MIGRATION/WORK &",
+        "environments": ["export LINERA_WALLET=/tmp/TEST_MIGRATION/WORK/wallet_0.json",
+                         "export LINERA_KEYSTORE=/tmp/TEST_MIGRATION/WORK/keystore_0.json",
+                         "export LINERA_STORAGE=rocksdb:/tmp/TEST_MIGRATION/WORK/client_0.db"],
+        "stdout": "Linera_old_schema_faucet_out",
+        "stderr": "Linera_old_schema_faucet_err"
+    }
 ]
