@@ -125,10 +125,10 @@ fn compute_weighted_median(values: &[f64], counts: &Vec<f64>) -> f64 {
     data.sort_by(|a, b| a.0.partial_cmp(b.0).unwrap()); // Handle sorting
     let target_weight = sum_weight / 2.0;
     let mut pos = 0_f64;
-    for idx in 0..data.len() {
-        pos += data[idx].1;
+    for ent in &data {
+        pos += ent.1;
         if pos > target_weight {
-            return *data[idx].0;
+            return *ent.0;
         }
     }
     panic!("Failed to find index");

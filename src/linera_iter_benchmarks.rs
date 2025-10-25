@@ -22,8 +22,7 @@ struct Config {
 fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
     let n_target = config.targets.len();
     let mut vec = vec![None; n_target];
-    let mut i_command = 0;
-    for command in &config.commands {
+    for (i_command, command) in config.commands.iter().enumerate() {
         println!("i_command={} command={} iter={}", i_command, command, iter);
         let file_out_str = format!("OUT_ITER_BENCHMARK_{}_{}.out", iter, i_command);
         let file_err_str = format!("OUT_ITER_BENCHMARK_{}_{}.out", iter, i_command);
@@ -36,10 +35,7 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
             .map(|x| x.to_string())
             .collect::<Vec<_>>();
         let raw_command = &l_str[0];
-        let mut comm_args = Vec::new();
-        for i in 1..l_str.len() {
-            comm_args.push(l_str[i].clone());
-        }
+        let comm_args = l_str[1..].to_vec();
         let output = Command::new(raw_command)
             .stdout::<File>(file_out)
             .stderr::<File>(file_err)
@@ -59,7 +55,6 @@ fn get_metrics_mus(config: &Config, iter: usize) -> Vec<f64> {
                 vec[i_target] = Some(metric_mus);
             }
         }
-        i_command += 1;
     }
     let mut vec_ret = Vec::new();
     for entry in vec {

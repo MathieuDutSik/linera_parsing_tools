@@ -303,14 +303,13 @@ pub fn read_linera_keys() -> (Vec<String>, Vec<String>) {
         .expect("Failed to execute curl command for getting ListLabel");
     let stdout = String::from_utf8(output.stdout).unwrap();
     let v: Value = serde_json::from_str(&stdout).unwrap();
-    let mut variables = Vec::new();
+    let mut variables = Vec::<String>::new();
     let linera = "linera_";
     for entry in v["data"].as_array().unwrap() {
         let entry: String = entry.to_string();
         let entry = entry.trim_matches(|c| c == '"').to_string();
-        if entry.starts_with(linera) {
-            let entry = entry[linera.len()..].to_string();
-            variables.push(entry);
+        if let Some(entry) = entry.strip_prefix(linera) {
+            variables.push(entry.to_string());
         }
     }
     let mut l_keys_counter = Vec::new();
@@ -375,9 +374,9 @@ pub fn parse_environments(entries: &Vec<String>) -> anyhow::Result<HashMap<Strin
         }
         let key = l_str[0].to_string();
         let mut value = l_str[1].to_string();
-        for i in 2..l_str.len() {
+        for estr in l_str.iter().skip(2) {
             value += "=";
-            value += &l_str[i];
+            value += estr;
         }
         map.insert(key, value);
     }
@@ -387,21 +386,21 @@ pub fn parse_environments(entries: &Vec<String>) -> anyhow::Result<HashMap<Strin
 
 
 
-pub fn get_call_command(directory: &Option<String>, command: &String) -> String {
+pub fn get_call_command(directory: &Option<String>, command: &str) -> String {
     match directory {
         None => {
-            command.clone()
+            command.to_string()
         },
         Some(directory) => {
-            if command.starts_with("./") {
+            if let Some(command) = command.strip_prefix("./") {
                 let mut call_command: String = directory.to_string();
                 if !call_command.ends_with("/") {
                     call_command.push('/');
                 }
-                call_command.push_str(&command[2..]);
+                call_command.push_str(command);
                 call_command
             } else {
-                command.clone()
+                command.to_string()
             }
         },
     }
@@ -409,7 +408,7 @@ pub fn get_call_command(directory: &Option<String>, command: &String) -> String 
 
 
 
-pub fn execute_command_general(command: &String,
+pub fn execute_command_general(command: &str,
                                directory: Option<String>,
                                file_out_str: String,
                                file_err_str: String,
