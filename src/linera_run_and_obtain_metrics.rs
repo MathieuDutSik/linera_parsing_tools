@@ -125,7 +125,7 @@ fn get_busy_idle_entries(line: &str, keys: &Vec<String>) -> Option<(f64, f64)> {
     let mut main_line = line.to_string();
     for key in keys {
         let l_splt = main_line
-            .split(&*key)
+            .split(key)
             .map(|x| x.to_string())
             .collect::<Vec<_>>();
         if l_splt.len() > 2 {
@@ -178,10 +178,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
         .collect::<Vec<_>>();
     let command = &l_str[0];
     println!("single_execution command={}", command);
-    let mut comm_args = Vec::new();
-    for i in 1..l_str.len() {
-        comm_args.push(l_str[i].clone());
-    }
+    let comm_args = l_str[1..].to_vec();
     println!("single_execution comm_args={:?}", comm_args);
     let _output = Command::new(command)
         .stdout::<File>(file_out)
@@ -262,7 +259,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
                     let count = count_f + count_s;
                     let count_s = count as usize;
                     if count_s > 0 {
-                        let value = frac * (100 as f64);
+                        let value = frac * (100_f64);
                         values.push(value);
                         counts.push(count);
                     }
@@ -286,7 +283,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
         let mut counts = Vec::new();
         for line in &lines {
             if line.ends_with("ms") {
-                let l_str = line.split(&*key).collect::<Vec<_>>();
+                let l_str = line.split(key).collect::<Vec<_>>();
                 if l_str.len() == 2 {
                     let sec_ent = l_str[1];
                     let sec_sel = sec_ent
@@ -295,7 +292,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
                         .collect::<String>();
                     let value = sec_sel.parse::<u64>().expect("a numerical value");
                     values.push(value as f64);
-                    counts.push(1 as f64);
+                    counts.push(1_f64);
                 }
             }
         }
@@ -325,9 +322,9 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
         for line in &lines {
             if let Some((busy_val, idle_val)) = get_busy_idle_entries(line, &keys) {
                 values_busy.push(busy_val);
-                counts_busy.push(1 as f64);
+                counts_busy.push(1_f64);
                 values_idle.push(idle_val);
-                counts_idle.push(1 as f64);
+                counts_idle.push(1_f64);
             }
         }
         let sm = SingleMetric {
@@ -353,7 +350,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
     for target_runtime in &config.target_runtimes {
         let value = get_runtime(&file_out_str, target_runtime);
         let values = vec![value];
-        let counts = vec![1 as f64];
+        let counts = vec![1_f64];
         let sm = SingleMetric {
             group: "runtime".to_string(),
             name: target_runtime.to_string(),
@@ -373,7 +370,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
         println!("num_seconds={}", num_seconds);
         let num_milisecond = time_delta.num_milliseconds() as f64;
         let values = vec![num_milisecond];
-        let counts = vec![1 as f64];
+        let counts = vec![1_f64];
         let sm = SingleMetric {
             group: "runtime after".to_string(),
             name: "total runtime".to_string(),
@@ -390,7 +387,7 @@ fn single_execution(iter: usize, config: &Config) -> anyhow::Result<Vec<SingleMe
 }
 
 fn main() -> anyhow::Result<()> {
-    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
+    let arguments = std::env::args().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg != 2 {
         println!("Program is used as");
@@ -424,7 +421,7 @@ fn main() -> anyhow::Result<()> {
         let l_metrics = single_execution(iter, &config)?;
         let mut missing_keys = Vec::new();
         for rec in &l_metrics {
-            if rec.values.len() == 0 {
+            if rec.values.is_empty() {
                 missing_keys.push(rec.name.clone());
             }
         }

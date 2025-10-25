@@ -385,6 +385,30 @@ pub fn parse_environments(entries: &Vec<String>) -> anyhow::Result<HashMap<Strin
 }
 
 
+
+
+pub fn get_call_command(directory: &Option<String>, command: &String) -> String {
+    match directory {
+        None => {
+            command.clone()
+        },
+        Some(directory) => {
+            if command.starts_with("./") {
+                let mut call_command: String = directory.to_string();
+                if !call_command.ends_with("/") {
+                    call_command.push('/');
+                }
+                call_command.push_str(&command[2..]);
+                call_command
+            } else {
+                command.clone()
+            }
+        },
+    }
+}
+
+
+
 pub fn execute_command_general(command: &String,
                                directory: Option<String>,
                                file_out_str: String,
@@ -402,12 +426,9 @@ pub fn execute_command_general(command: &String,
         .split(' ')
         .map(|x| x.to_string())
         .collect::<Vec<_>>();
-    let call_command = &l_str[0];
+    let call_command = get_call_command(&directory, &l_str[0]);
     println!("call_command={}", call_command);
-    let mut comm_args = Vec::new();
-    for i in 1..l_str.len() {
-        comm_args.push(l_str[i].clone());
-    }
+    let comm_args = l_str[1..].into_iter().map(|x| x.clone()).collect::<Vec<String>>();
     println!("comm_args={:?}", comm_args);
     if command.ends_with(" &") {
         let child = if let Some(directory) = directory {

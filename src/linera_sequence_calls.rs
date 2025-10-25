@@ -44,15 +44,15 @@ fn execute_command(i_command: usize, entry: &Entry, childs: &mut Vec<Child>) -> 
     let command = &entry.command;
     let mut file_out_str = entry.stdout.to_string();
     let mut file_err_str = entry.stderr.to_string();
-    if file_out_str.len() == 0 {
+    if file_out_str.is_empty() {
         file_out_str = format!("COMM_DEFAULT_{i_command}_out");
     }
-    if file_err_str.len() == 0 {
+    if file_err_str.is_empty() {
         file_err_str = format!("COMM_DEFAULT_{i_command}_err");
     }
     let environments = &entry.environments;
     //
-    let directory = if directory.len() > 0 {
+    let directory = if !directory.is_empty() {
         Some(directory.clone())
     } else {
         None
@@ -61,7 +61,7 @@ fn execute_command(i_command: usize, entry: &Entry, childs: &mut Vec<Child>) -> 
                             directory,
                             file_out_str,
                             file_err_str,
-                            &environments,
+                            environments,
                             childs)?;
     Ok(())
 }
@@ -77,7 +77,7 @@ fn do_kill_processes(i_command: usize, entry: &Entry) -> anyhow::Result<()> {
 
 
 fn main() -> anyhow::Result<()> {
-    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
+    let arguments = std::env::args().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg != 2 {
         println!("Program is used as");

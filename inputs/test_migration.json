@@ -26,7 +26,7 @@
     },
     {
         "name": "Eliminating old storage",
-        "directory": "/tmp/TEST_MIGRATION/linera-protocol_before_migration",
+        "directory": "/tmp/TEST_MIGRATION/linera-protocol_old_schema",
         "command": "./target/debug/linera storage delete-all --storage scylladb:tcp:localhost:9042:table_a"
     },
     {

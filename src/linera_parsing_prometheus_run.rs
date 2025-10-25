@@ -13,7 +13,7 @@ use common::{
 };
 
 fn main() {
-    let arguments = std::env::args().into_iter().collect::<Vec<_>>();
+    let arguments = std::env::args().collect::<Vec<_>>();
     let n_arg = arguments.len();
     if n_arg == 1 {
         println!("Program is used as");
@@ -102,7 +102,6 @@ fn main() {
         println!("job_name={:?}", job_name);
         l_job_name.push(job_name.clone());
     }
-    let n_job = l_job_name.len();
     println!("l_job_name={:?}", l_job_name);
     //
     println!("---------------- keys_counter -----------------");
@@ -111,11 +110,11 @@ fn main() {
         let key = format!("linera_{}", key);
         let data = read_key(&key, &l_job_name, &start_time_str, &end_time_str);
         let mut n_write = 0;
-        for i in 0..n_job {
+        for (i, job_name) in l_job_name.iter().enumerate() {
             let len = data.entries[i].len();
             if len > 1 {
                 n_write += 1;
-                println!("key:{} job_name:{}", key, l_job_name[i]);
+                println!("key:{} job_name:{}", key, job_name);
                 for idx in 1..len {
                     let value1 = &data.entries[i][idx].1;
                     let value0 = &data.entries[i][idx - 1].1;
@@ -147,9 +146,9 @@ fn main() {
         let data_sum = read_key(&key_sum, &l_job_name, &start_time_str, &end_time_str);
         let mut n_write = 0;
         let mut alljobs_str = String::new();
-        let mut value_glob = 0 as f64;
-        let mut count_glob = 0 as f64;
-        for i in 0..n_job {
+        let mut value_glob = 0_f64;
+        let mut count_glob = 0_f64;
+        for (i, job_name) in l_job_name.iter().enumerate() {
             let len_sum = data_sum.entries[i].len();
             let len_count = data_count.entries[i].len();
             if len_sum != len_count {
@@ -158,7 +157,7 @@ fn main() {
             }
             if len_sum > 1 {
                 n_write += 1;
-                alljobs_str += &format!("key:{} job_name:{}", key, l_job_name[i]);
+                alljobs_str += &format!("key:{} job_name:{}", key, job_name);
                 for idx in 1..len_sum {
                     let value1 = &data_sum.entries[i][idx].1;
                     let value1 = get_float(value1);
