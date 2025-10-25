@@ -388,6 +388,7 @@ pub fn parse_environments(entries: &Vec<String>) -> anyhow::Result<HashMap<Strin
 
 
 pub fn execute_command_general(command: &String,
+                               directory: Option<String>,
                                file_out_str: String,
                                file_err_str: String,
                                environments: &Vec<String>,
@@ -409,21 +410,43 @@ pub fn execute_command_general(command: &String,
         comm_args.push(l_str[i].clone());
     }
     if command.ends_with(" &") {
-        let child = Command::new(call_command)
-            .stdout::<File>(file_out)
-            .stderr::<File>(file_err)
-            .envs(&envs)
-            .args(comm_args)
-            .spawn()?;
+        let child = if let Some(directory) = directory {
+            let path = Path::new(&directory);
+            Command::new(call_command)
+                .current_dir(path)
+                .stdout::<File>(file_out)
+                .stderr::<File>(file_err)
+                .envs(&envs)
+                .args(comm_args)
+                .spawn()?
+        } else {
+            Command::new(call_command)
+                .stdout::<File>(file_out)
+                .stderr::<File>(file_err)
+                .envs(&envs)
+                .args(comm_args)
+                .spawn()?
+        };
         childs.push(child);
     } else {
         let time_start = Instant::now();
-        let output = Command::new(call_command)
-            .stdout::<File>(file_out)
-            .stderr::<File>(file_err)
-            .envs(&envs)
-            .args(comm_args)
-            .output()?;
+        let output = if let Some(directory) = directory {
+            let path = Path::new(&directory);
+            Command::new(call_command)
+                .current_dir(path)
+                .stdout::<File>(file_out)
+                .stderr::<File>(file_err)
+                .envs(&envs)
+                .args(comm_args)
+                .output()?
+        } else {
+            Command::new(call_command)
+                .stdout::<File>(file_out)
+                .stderr::<File>(file_err)
+                .envs(&envs)
+                .args(comm_args)
+                .output()?
+        };
         println!(
             "   output={:?} in {} ms",
             output,

@@ -409,7 +409,7 @@ fn main() -> anyhow::Result<()> {
         let file_err_str = format!("OUT_COMM_{}.err", i_command);
         let red_command = get_red_command(command);
         let environments = get_environments(&config, &red_command);
-        execute_command_general(command, file_out_str, file_err_str, &environments, &mut childs)?;
+        execute_command_general(command, None, file_out_str, file_err_str, &environments, &mut childs)?;
     }
     println!("------ The initial runs have been done -------");
     //
